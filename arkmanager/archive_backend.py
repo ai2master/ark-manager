@@ -1,16 +1,13 @@
 """Backend for archive operations using the 7z command."""
 
 import os
-import re
 import subprocess
-import tempfile
 from dataclasses import dataclass, field
-from typing import List, Optional, Callable
+from typing import Callable, List, Optional
 
 from .encoding_utils import (
     auto_detect_zip_filename,
     fix_zip_filename,
-    CJK_ENCODINGS,
 )
 
 
@@ -62,11 +59,10 @@ class ArchiveBackend:
     def _verify_7z(self):
         """Verify 7z is available."""
         try:
-            result = subprocess.run(
+            subprocess.run(
                 [self.seven_zip_path],
                 capture_output=True, timeout=10
             )
-            # 7z returns 0 or prints version info
         except FileNotFoundError:
             raise RuntimeError(
                 "7z command not found. Please install p7zip-full:\n"

@@ -2,26 +2,45 @@
 
 import os
 import sys
-from typing import Optional, List
+from typing import List, Optional
 
+from PyQt6.QtCore import QSettings, QSize, Qt, QThread, pyqtSignal
+from PyQt6.QtGui import QAction, QColor, QFont, QKeySequence
 from PyQt6.QtWidgets import (
-    QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QSplitter,
-    QTreeWidget, QTreeWidgetItem, QTextEdit, QToolBar, QStatusBar,
-    QFileDialog, QMessageBox, QLabel, QComboBox, QCheckBox,
-    QLineEdit, QPushButton, QDialog, QFormLayout, QSpinBox,
-    QGroupBox, QRadioButton, QButtonGroup, QProgressBar,
-    QTabWidget, QPlainTextEdit, QHeaderView, QMenuBar, QMenu,
-    QApplication, QDialogButtonBox, QGridLayout,
+    QCheckBox,
+    QComboBox,
+    QDialog,
+    QDialogButtonBox,
+    QFileDialog,
+    QFormLayout,
+    QGroupBox,
+    QHBoxLayout,
+    QHeaderView,
+    QLabel,
+    QLineEdit,
+    QMainWindow,
+    QMessageBox,
+    QPlainTextEdit,
+    QProgressBar,
+    QPushButton,
+    QSpinBox,
+    QSplitter,
+    QTextEdit,
+    QToolBar,
+    QTreeWidget,
+    QTreeWidgetItem,
+    QVBoxLayout,
+    QWidget,
 )
-from PyQt6.QtCore import Qt, QThread, pyqtSignal, QSize, QSettings
-from PyQt6.QtGui import QAction, QIcon, QKeySequence, QFont, QColor
 
-from . import __version__, __app_name__
-from .archive_backend import ArchiveBackend, ArchiveInfo, ArchiveEntry
-from .john_backend import JohnBackend, AttackMode, JohnResult
+from . import __app_name__, __version__
+from .archive_backend import ArchiveBackend, ArchiveInfo
 from .encoding_utils import (
-    CJK_ENCODINGS, detect_zip_pseudo_encryption, patch_pseudo_encryption,
+    CJK_ENCODINGS,
+    detect_zip_pseudo_encryption,
+    patch_pseudo_encryption,
 )
+from .john_backend import AttackMode, JohnBackend, JohnResult
 
 
 class WorkerThread(QThread):

@@ -1,13 +1,12 @@
 """Backend for John the Ripper integration."""
 
 import os
-import re
 import signal
 import subprocess
 import tempfile
-from dataclasses import dataclass, field
-from typing import List, Optional, Callable
+from dataclasses import dataclass
 from enum import Enum
+from typing import Callable, List, Optional
 
 
 class AttackMode(Enum):
@@ -70,7 +69,7 @@ class JohnBackend:
 
         for path in search_paths:
             try:
-                result = subprocess.run(
+                subprocess.run(
                     [path, "--help"],
                     capture_output=True, timeout=10
                 )
@@ -82,7 +81,7 @@ class JohnBackend:
 
         # Try via snap
         try:
-            result = subprocess.run(
+            subprocess.run(
                 ["snap", "run", "john-the-ripper"],
                 capture_output=True, timeout=10
             )
@@ -94,7 +93,7 @@ class JohnBackend:
     def is_available(self) -> bool:
         """Check if John the Ripper is available."""
         try:
-            result = subprocess.run(
+            subprocess.run(
                 self.john_path.split() + ["--help"],
                 capture_output=True, timeout=10
             )

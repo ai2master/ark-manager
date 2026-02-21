@@ -210,9 +210,11 @@ def detect_zip_pseudo_encryption(filepath: str) -> dict:
                         if preview in (b'\x89PNG', b'\xff\xd8\xff', b'PK\x03\x04',
                                        b'\x7fELF', b'%PDF'):
                             result["is_pseudo_encrypted"] = True
+                            fname = lfh['filename'].decode('utf-8', errors='replace')
                             result["details"].append(
-                                f"Entry '{lfh['filename'].decode('utf-8', errors='replace')}': "
-                                f"Encrypted flag set but data appears unencrypted (recognized file header)"
+                                f"Entry '{fname}': Encrypted flag set "
+                                f"but data appears unencrypted "
+                                f"(recognized file header)"
                             )
 
     if not result["details"]:

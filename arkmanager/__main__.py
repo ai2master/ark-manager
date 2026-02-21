@@ -1,7 +1,7 @@
 """Entry point for ArkManager."""
 
-import sys
 import os
+import sys
 
 
 def main():
@@ -10,8 +10,8 @@ def main():
         os.environ.setdefault("LANG", "en_US.UTF-8")
         os.environ.setdefault("LC_ALL", "en_US.UTF-8")
 
-    from PyQt6.QtWidgets import QApplication
     from PyQt6.QtCore import Qt
+    from PyQt6.QtWidgets import QApplication
 
     app = QApplication(sys.argv)
     app.setApplicationName("ArkManager")
