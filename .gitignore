@@ -1,0 +1,44 @@
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+dist/
+build/
+*.egg
+.eggs/
+*.whl
+
+# Virtual environments
+venv/
+.venv/
+env/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Build artifacts
+*.deb
+*.rpm
+*.AppImage
+*.flatpak
+repo/
+build-dir/
+.flatpak-builder/
+
+# Test
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Settings
+*.conf
+*.ini
+!pyproject.toml

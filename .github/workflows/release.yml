@@ -1,0 +1,213 @@
+name: Build & Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version number (e.g., 1.0.0)'
+        required: true
+        default: '1.0.0'
+
+env:
+  VERSION: ${{ github.event.inputs.version || github.ref_name }}
+
+jobs:
+  # ==================== DEB Package ====================
+  build-deb:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set version
+        run: |
+          VERSION="${{ env.VERSION }}"
+          VERSION="${VERSION#v}"
+          echo "PKG_VERSION=${VERSION}" >> $GITHUB_ENV
+
+      - name: Install dependencies
+        run: sudo apt-get update && sudo apt-get install -y dpkg-dev
+
+      - name: Build DEB package
+        run: |
+          chmod +x packaging/deb/build-deb.sh
+          bash packaging/deb/build-deb.sh "${PKG_VERSION}"
+
+      - name: Upload DEB artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: deb-package
+          path: "*.deb"
+
+  # ==================== RPM Package ====================
+  build-rpm:
+    runs-on: ubuntu-22.04
+    container:
+      image: fedora:39
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set version
+        run: |
+          VERSION="${{ env.VERSION }}"
+          VERSION="${VERSION#v}"
+          echo "PKG_VERSION=${VERSION}" >> $GITHUB_ENV
+
+      - name: Install build dependencies
+        run: |
+          dnf install -y rpm-build python3-devel python3-setuptools rpmdevtools
+
+      - name: Build RPM package
+        run: |
+          chmod +x packaging/rpm/build-rpm.sh
+          bash packaging/rpm/build-rpm.sh "${PKG_VERSION}"
+
+      - name: Find and upload RPM
+        uses: actions/upload-artifact@v4
+        with:
+          name: rpm-package
+          path: ~/rpmbuild/RPMS/**/*.rpm
+
+  # ==================== AppImage ====================
+  build-appimage:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set version
+        run: |
+          VERSION="${{ env.VERSION }}"
+          VERSION="${VERSION#v}"
+          echo "PKG_VERSION=${VERSION}" >> $GITHUB_ENV
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install system deps
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y p7zip-full libgl1-mesa-glx libegl1 libfuse2 file
+
+      - name: Build AppImage
+        run: |
+          chmod +x packaging/appimage/build-appimage.sh
+          bash packaging/appimage/build-appimage.sh "${PKG_VERSION}"
+
+      - name: Upload AppImage artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: appimage-package
+          path: "*.AppImage"
+
+  # ==================== Flatpak ====================
+  build-flatpak:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set version
+        run: |
+          VERSION="${{ env.VERSION }}"
+          VERSION="${VERSION#v}"
+          echo "PKG_VERSION=${VERSION}" >> $GITHUB_ENV
+
+      - name: Install Flatpak and flatpak-builder
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y flatpak flatpak-builder
+          sudo flatpak remote-add --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
+          sudo flatpak install -y flathub org.kde.Platform//6.7 org.kde.Sdk//6.7
+
+      - name: Build Flatpak bundle
+        run: |
+          flatpak-builder --force-clean --repo=repo build-dir packaging/flatpak/io.github.arkmanager.ArkManager.yml
+          flatpak build-bundle repo "ArkManager-${PKG_VERSION}.flatpak" io.github.arkmanager.ArkManager
+
+      - name: Upload Flatpak artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: flatpak-package
+          path: "*.flatpak"
+
+  # ==================== Create Release ====================
+  release:
+    needs: [build-deb, build-rpm, build-appimage, build-flatpak]
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/')
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts/
+
+      - name: Set version
+        run: |
+          VERSION="${{ github.ref_name }}"
+          VERSION="${VERSION#v}"
+          echo "PKG_VERSION=${VERSION}" >> $GITHUB_ENV
+
+      - name: Generate release notes
+        id: release_notes
+        run: |
+          cat << 'EOF' > release_notes.md
+          ## ArkManager v${{ env.PKG_VERSION }}
+
+          ### Features
+          - GUI archive manager powered by 7z CLI
+          - Chinese filename encoding support (auto-detect, GBK, GB18030, Big5, Shift-JIS)
+          - Archive comment display in preview panel
+          - Fake/pseudo encryption detection and removal
+          - Chinese password support for encryption/decryption
+          - John the Ripper integration for password recovery
+          - Auto-create parent folder on extraction
+
+          ### Downloads
+          | Package | Platform |
+          |---------|----------|
+          | `.deb` | Ubuntu, Debian, Linux Mint |
+          | `.rpm` | Fedora, CentOS, openSUSE |
+          | `.AppImage` | Any Linux (portable) |
+          | `.flatpak` | Any Linux (sandboxed) |
+
+          ### Requirements
+          - `p7zip-full` (required)
+          - `john` (optional, for password recovery)
+          - Python 3.9+ with PyQt6
+
+          ### Installation
+          ```bash
+          # Debian/Ubuntu
+          sudo dpkg -i arkmanager_*.deb
+          sudo apt-get install -f
+
+          # Fedora
+          sudo dnf install arkmanager-*.rpm
+
+          # AppImage (portable, no install needed)
+          chmod +x ArkManager-*.AppImage
+          ./ArkManager-*.AppImage
+
+          # Flatpak
+          flatpak install ArkManager-*.flatpak
+          ```
+          EOF
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          body_path: release_notes.md
+          files: |
+            artifacts/**/*.deb
+            artifacts/**/*.rpm
+            artifacts/**/*.AppImage
+            artifacts/**/*.flatpak
+          draft: false
+          prerelease: false

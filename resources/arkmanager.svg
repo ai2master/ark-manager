@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#2196F3;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#1565C0;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="zip" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#FFC107;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#FF8F00;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  <!-- Background rounded rect -->
+  <rect x="8" y="8" width="112" height="112" rx="20" ry="20" fill="url(#bg)" />
+  <!-- Archive box -->
+  <rect x="28" y="35" width="72" height="60" rx="6" ry="6" fill="#fff" opacity="0.95" />
+  <!-- Zipper pattern -->
+  <rect x="58" y="35" width="12" height="8" fill="url(#zip)" />
+  <rect x="58" y="47" width="12" height="8" fill="url(#zip)" />
+  <rect x="58" y="59" width="12" height="8" fill="url(#zip)" />
+  <rect x="58" y="71" width="12" height="8" fill="url(#zip)" />
+  <rect x="58" y="83" width="12" height="8" fill="url(#zip)" />
+  <!-- Lock symbol for encryption -->
+  <circle cx="64" cy="28" r="9" fill="none" stroke="#fff" stroke-width="3" />
+  <rect x="56" y="25" width="16" height="12" rx="2" ry="2" fill="#fff" />
+  <!-- Text ARK -->
+  <text x="64" y="108" font-family="sans-serif" font-size="16" font-weight="bold"
+        fill="#fff" text-anchor="middle" opacity="0.9">ARK</text>
+</svg>

@@ -1,0 +1,12 @@
+[Desktop Entry]
+Name=ArkManager
+GenericName=Archive Manager
+Comment=Manage compressed archives with Chinese encoding support
+Exec=arkmanager %F
+Icon=arkmanager
+Terminal=false
+Type=Application
+Categories=Utility;Archiving;Compression;
+MimeType=application/zip;application/x-7z-compressed;application/x-rar-compressed;application/gzip;application/x-bzip2;application/x-xz;application/x-tar;application/x-compress;application/x-lzma;application/x-lzip;application/zstd;
+Keywords=archive;compress;decompress;zip;7z;rar;tar;extract;
+StartupNotify=true

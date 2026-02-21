@@ -1,0 +1,66 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "arkmanager"
+version = "1.0.0"
+description = "A 7-Zip based archive manager for Linux with Chinese encoding support, fake encryption detection, and John the Ripper integration"
+readme = "README.md"
+license = {text = "GPL-3.0-or-later"}
+requires-python = ">=3.9"
+authors = [
+    {name = "ArkManager Contributors"},
+]
+keywords = ["archive", "7zip", "compression", "gui", "chinese-encoding", "john-the-ripper"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Environment :: X11 Applications :: Qt",
+    "Intended Audience :: End Users/Desktop",
+    "License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)",
+    "Operating System :: POSIX :: Linux",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: System :: Archiving :: Compression",
+    "Topic :: Utilities",
+]
+
+dependencies = [
+    "PyQt6>=6.4.0",
+    "chardet>=5.0.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0",
+    "pytest-qt>=4.2",
+    "ruff>=0.1.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/aidev666888/ark-manager"
+Repository = "https://github.com/aidev666888/ark-manager"
+Issues = "https://github.com/aidev666888/ark-manager/issues"
+
+[project.scripts]
+arkmanager = "arkmanager.__main__:main"
+
+[project.gui-scripts]
+arkmanager-gui = "arkmanager.__main__:main"
+
+[tool.setuptools.packages.find]
+include = ["arkmanager*"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py39"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
