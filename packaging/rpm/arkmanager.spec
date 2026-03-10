@@ -4,7 +4,7 @@ Release:        1%{?dist}
 Summary:        7-Zip based archive manager for Linux with Chinese encoding support
 
 License:        GPL-3.0-or-later
-URL:            https://github.com/aidev666888/ark-manager
+URL:            https://github.com/ai2master/ark-manager
 Source0:        %{name}-%{version}.tar.gz
 
 BuildArch:      noarch

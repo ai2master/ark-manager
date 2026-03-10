@@ -34,7 +34,7 @@ The interface is inspired by 7-Zip for Windows and PeaZip for Linux, with a tree
 ### From Source
 
 ```bash
-git clone https://github.com/aidev666888/ark-manager.git
+git clone https://github.com/ai2master/ark-manager.git
 cd ark-manager
 pip install -e .
 arkmanager

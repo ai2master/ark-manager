@@ -31,7 +31,7 @@ Description: 7-Zip based archive manager for Linux
  archive comment display, fake encryption detection, Chinese password
  support, and John the Ripper integration for password recovery.
 Maintainer: ArkManager Contributors <arkmanager@users.noreply.github.com>
-Homepage: https://github.com/aidev666888/ark-manager
+Homepage: https://github.com/ai2master/ark-manager
 EOF
 
 # Copy application files
