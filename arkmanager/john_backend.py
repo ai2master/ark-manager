@@ -1,4 +1,4 @@
-"""Backend for John the Ripper integration."""
+"""John the Ripper 集成后端 | Backend for John the Ripper integration."""
 
 import os
 import signal
@@ -10,6 +10,7 @@ from typing import Callable, List, Optional
 
 
 class AttackMode(Enum):
+    """攻击模式枚举 | Attack mode enumeration."""
     WORDLIST = "wordlist"
     INCREMENTAL = "incremental"
     SINGLE = "single"
@@ -18,7 +19,7 @@ class AttackMode(Enum):
 
 @dataclass
 class JohnResult:
-    """Result from a John the Ripper session."""
+    """John the Ripper 会话的结果 | Result from a John the Ripper session."""
     hash_file: str = ""
     password: str = ""
     found: bool = False
@@ -30,9 +31,9 @@ class JohnResult:
 
 
 class JohnBackend:
-    """Backend for John the Ripper operations."""
+    """John the Ripper 操作后端 | Backend for John the Ripper operations."""
 
-    # Supported *2john tools
+    # 支持的 *2john 工具 | Supported *2john tools
     HASH_EXTRACTORS = {
         ".zip": "zip2john",
         ".rar": "rar2john",
@@ -56,8 +57,8 @@ class JohnBackend:
         self._find_john()
 
     def _find_john(self):
-        """Find John the Ripper installation."""
-        # Check common locations
+        """查找 John the Ripper 安装路径 | Find John the Ripper installation."""
+        # 检查常见位置 | Check common locations
         search_paths = [
             "john",
             "/usr/bin/john",
@@ -79,7 +80,7 @@ class JohnBackend:
             except (FileNotFoundError, subprocess.TimeoutExpired):
                 continue
 
-        # Try via snap
+        # 尝试通过 snap | Try via snap
         try:
             subprocess.run(
                 ["snap", "run", "john-the-ripper"],
@@ -91,7 +92,7 @@ class JohnBackend:
             pass
 
     def is_available(self) -> bool:
-        """Check if John the Ripper is available."""
+        """检查 John the Ripper 是否可用 | Check if John the Ripper is available."""
         try:
             subprocess.run(
                 self.john_path.split() + ["--help"],
@@ -102,8 +103,8 @@ class JohnBackend:
             return False
 
     def _find_tool(self, tool_name: str) -> Optional[str]:
-        """Find a *2john helper tool."""
-        # Check common locations
+        """查找 *2john 辅助工具 | Find a *2john helper tool."""
+        # 检查常见位置 | Check common locations
         search_dirs = [
             self.john_dir,
             os.path.join(self.john_dir, ".."),
@@ -119,7 +120,7 @@ class JohnBackend:
             if os.path.isfile(path):
                 return path
 
-        # Try in PATH
+        # 尝试在 PATH 中查找 | Try in PATH
         try:
             result = subprocess.run(
                 ["which", tool_name],
@@ -133,10 +134,10 @@ class JohnBackend:
         return None
 
     def extract_hash(self, archive_path: str) -> tuple:
-        """Extract password hash from an archive.
+        """从归档文件中提取密码哈希 | Extract password hash from an archive.
 
         Returns:
-            (success: bool, hash_file_path: str, error: str)
+            (成功标志, 哈希文件路径, 错误信息) | (success: bool, hash_file_path: str, error: str)
         """
         ext = os.path.splitext(archive_path)[1].lower()
         tool_name = self.HASH_EXTRACTORS.get(ext)
@@ -148,12 +149,12 @@ class JohnBackend:
         if not tool_path:
             return False, "", f"{tool_name} not found. Install john-the-ripper."
 
-        # Create temp file for hash
+        # 为哈希创建临时文件 | Create temp file for hash
         hash_fd, hash_file = tempfile.mkstemp(suffix=".hash", prefix="arkman_")
         os.close(hash_fd)
 
         try:
-            # Determine how to run the tool
+            # 确定如何运行工具 | Determine how to run the tool
             cmd = []
             if tool_name.endswith(".pl"):
                 cmd = ["perl", tool_path, archive_path]
@@ -196,9 +197,10 @@ class JohnBackend:
               format_hint: str = "",
               extra_args: Optional[List[str]] = None,
               progress_callback: Optional[Callable[[str], None]] = None) -> JohnResult:
-        """Run John the Ripper to crack a hash.
+        """运行 John the Ripper 破解哈希 | Run John the Ripper to crack a hash.
 
-        Returns JohnResult with findings.
+        Returns:
+            包含破解结果的 JohnResult | JohnResult with findings.
         """
         result = JohnResult(hash_file=hash_file)
 
@@ -248,7 +250,7 @@ class JohnBackend:
 
             result.status = output
             if self._process.returncode == 0:
-                # Check if password was found
+                # 检查是否找到密码 | Check if password was found
                 found = self.show_cracked(hash_file, format_hint)
                 if found:
                     result.password = found
@@ -268,7 +270,7 @@ class JohnBackend:
         return result
 
     def show_cracked(self, hash_file: str, format_hint: str = "") -> str:
-        """Show already cracked passwords."""
+        """显示已破解的密码 | Show already cracked passwords."""
         cmd = self.john_path.split() + ["--show"]
         if format_hint:
             cmd.append(f"--format={format_hint}")
@@ -281,7 +283,7 @@ class JohnBackend:
                 timeout=30,
             )
             output = result.stdout.decode("utf-8", errors="replace")
-            # Parse output: format is usually "hash:password"
+            # 解析输出：格式通常是 "哈希:密码" | Parse output: format is usually "hash:password"
             lines = output.strip().split("\n")
             for line in lines:
                 if ":" in line and "password hash" not in line.lower():
@@ -293,7 +295,7 @@ class JohnBackend:
             return ""
 
     def stop(self):
-        """Stop the running John process."""
+        """停止运行中的 John 进程 | Stop the running John process."""
         if self._process:
             try:
                 self._process.send_signal(signal.SIGINT)
@@ -307,7 +309,7 @@ class JohnBackend:
                 self._process = None
 
     def get_status(self, hash_file: str) -> str:
-        """Get status of a running or completed session."""
+        """获取运行中或已完成会话的状态 | Get status of a running or completed session."""
         cmd = self.john_path.split() + ["--status"]
 
         try:
@@ -321,7 +323,7 @@ class JohnBackend:
             return ""
 
     def list_formats(self) -> List[str]:
-        """List available hash formats."""
+        """列出可用的哈希格式 | List available hash formats."""
         cmd = self.john_path.split() + ["--list=formats"]
         try:
             result = subprocess.run(

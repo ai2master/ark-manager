@@ -1,11 +1,11 @@
-"""Entry point for ArkManager."""
+"""ArkManager 程序入口点 | Entry point for ArkManager application."""
 
 import os
 import sys
 
 
 def main():
-    # Ensure proper encoding for Chinese characters
+    # 确保中文字符正确编码 | Ensure proper encoding for Chinese characters
     if sys.platform == "linux":
         os.environ.setdefault("LANG", "en_US.UTF-8")
         os.environ.setdefault("LC_ALL", "en_US.UTF-8")
@@ -18,10 +18,10 @@ def main():
     app.setOrganizationName("ArkManager")
     app.setApplicationVersion("1.0.0")
 
-    # Enable drag and drop
+    # 启用高DPI图像支持 | Enable high DPI pixmap support
     app.setAttribute(Qt.ApplicationAttribute.AA_UseHighDpiPixmaps, True)
 
-    # Apply style
+    # 应用全局样式表 | Apply global stylesheet
     app.setStyleSheet("""
         QMainWindow {
             background: #fafafa;
@@ -99,7 +99,7 @@ def main():
     window = MainWindow()
     window.show()
 
-    # Handle command-line file argument
+    # 处理命令行文件参数 | Handle command-line file argument
     if len(sys.argv) > 1:
         filepath = sys.argv[1]
         if os.path.isfile(filepath):

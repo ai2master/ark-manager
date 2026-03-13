@@ -1,4 +1,9 @@
-"""Main window for ArkManager archive manager."""
+"""
+ArkManager 压缩包管理器主窗口 | Main window for ArkManager archive manager.
+
+提供图形界面用于浏览、创建、提取和管理压缩文件 | Provides GUI for browsing, creating,
+extracting and managing archives.
+"""
 
 import os
 import sys
@@ -44,7 +49,9 @@ from .john_backend import AttackMode, JohnBackend, JohnResult
 
 
 class WorkerThread(QThread):
-    """Generic worker thread for long-running operations."""
+    """
+    通用工作线程用于长时操作 | Generic worker thread for long-running operations.
+    """
     finished = pyqtSignal(bool, str)
     progress = pyqtSignal(str, int)
 
@@ -66,7 +73,9 @@ class WorkerThread(QThread):
 
 
 class JohnWorkerThread(QThread):
-    """Worker thread for John the Ripper operations."""
+    """
+    John the Ripper 操作工作线程 | Worker thread for John the Ripper operations.
+    """
     finished = pyqtSignal(object)  # JohnResult
     status_update = pyqtSignal(str)
 
@@ -88,7 +97,9 @@ class JohnWorkerThread(QThread):
 
 
 class ExtractDialog(QDialog):
-    """Dialog for extraction options."""
+    """
+    解压选项对话框 | Dialog for extraction options.
+    """
 
     def __init__(self, parent=None, filepath: str = ""):
         super().__init__(parent)
@@ -99,7 +110,7 @@ class ExtractDialog(QDialog):
     def _setup_ui(self, filepath):
         layout = QVBoxLayout(self)
 
-        # Source
+        # 源文件 | Source
         src_group = QGroupBox("Source")
         src_layout = QFormLayout()
         self.source_label = QLabel(filepath)
@@ -108,7 +119,7 @@ class ExtractDialog(QDialog):
         src_group.setLayout(src_layout)
         layout.addWidget(src_group)
 
-        # Destination
+        # 目标目录 | Destination
         dest_group = QGroupBox("Destination")
         dest_layout = QHBoxLayout()
         self.dest_edit = QLineEdit()
@@ -120,7 +131,7 @@ class ExtractDialog(QDialog):
         dest_group.setLayout(dest_layout)
         layout.addWidget(dest_group)
 
-        # Options
+        # 选项 | Options
         opt_group = QGroupBox("Options")
         opt_layout = QVBoxLayout()
 
@@ -132,7 +143,7 @@ class ExtractDialog(QDialog):
         self.overwrite_cb.setChecked(True)
         opt_layout.addWidget(self.overwrite_cb)
 
-        # Encoding options
+        # 编码选项 | Encoding options
         enc_layout = QHBoxLayout()
         enc_layout.addWidget(QLabel("Filename Encoding:"))
         self.encoding_combo = QComboBox()
@@ -143,7 +154,7 @@ class ExtractDialog(QDialog):
         enc_layout.addWidget(self.encoding_combo)
         opt_layout.addLayout(enc_layout)
 
-        # Forced encoding selector
+        # 强制编码选择器 | Forced encoding selector
         self.forced_enc_layout = QHBoxLayout()
         self.forced_enc_layout.addWidget(QLabel("Forced Encoding:"))
         self.forced_enc_combo = QComboBox()
@@ -151,13 +162,13 @@ class ExtractDialog(QDialog):
             self.forced_enc_combo.addItem(f"{name} ({code})", code)
         self.forced_enc_layout.addWidget(self.forced_enc_combo)
         opt_layout.addLayout(self.forced_enc_layout)
-        # Hide by default
+        # 默认隐藏 | Hide by default
         self._set_forced_enc_visible(False)
 
         opt_group.setLayout(opt_layout)
         layout.addWidget(opt_group)
 
-        # Password
+        # 密码 | Password
         pwd_group = QGroupBox("Password")
         pwd_layout = QHBoxLayout()
         self.password_edit = QLineEdit()
@@ -174,7 +185,7 @@ class ExtractDialog(QDialog):
         pwd_group.setLayout(pwd_layout)
         layout.addWidget(pwd_group)
 
-        # Buttons
+        # 按钮 | Buttons
         buttons = QDialogButtonBox(
             QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel
         )
@@ -210,7 +221,9 @@ class ExtractDialog(QDialog):
 
 
 class CompressDialog(QDialog):
-    """Dialog for compression options."""
+    """
+    压缩选项对话框 | Dialog for compression options.
+    """
 
     def __init__(self, parent=None, input_paths: Optional[List[str]] = None):
         super().__init__(parent)
@@ -222,7 +235,7 @@ class CompressDialog(QDialog):
     def _setup_ui(self):
         layout = QVBoxLayout(self)
 
-        # Output file
+        # 输出文件 | Output file
         out_group = QGroupBox("Output")
         out_layout = QHBoxLayout()
         self.output_edit = QLineEdit()
@@ -233,7 +246,7 @@ class CompressDialog(QDialog):
         out_group.setLayout(out_layout)
         layout.addWidget(out_group)
 
-        # Format and compression
+        # 格式和压缩 | Format and compression
         fmt_group = QGroupBox("Format && Compression")
         fmt_layout = QFormLayout()
 
@@ -269,7 +282,7 @@ class CompressDialog(QDialog):
         fmt_group.setLayout(fmt_layout)
         layout.addWidget(fmt_group)
 
-        # Encoding options
+        # 编码选项 | Encoding options
         enc_group = QGroupBox("Filename Encoding (ZIP only)")
         enc_layout = QFormLayout()
         self.enc_mode_combo = QComboBox()
@@ -279,7 +292,7 @@ class CompressDialog(QDialog):
         enc_group.setLayout(enc_layout)
         layout.addWidget(enc_group)
 
-        # Password
+        # 密码 | Password
         pwd_group = QGroupBox("Encryption")
         pwd_layout = QFormLayout()
         self.password_edit = QLineEdit()
@@ -302,7 +315,7 @@ class CompressDialog(QDialog):
         pwd_group.setLayout(pwd_layout)
         layout.addWidget(pwd_group)
 
-        # Buttons
+        # 按钮 | Buttons
         buttons = QDialogButtonBox(
             QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel
         )
@@ -348,7 +361,9 @@ class CompressDialog(QDialog):
 
 
 class JohnDialog(QDialog):
-    """Dialog for John the Ripper integration."""
+    """
+    John the Ripper 密码破解对话框 | Dialog for John the Ripper integration.
+    """
 
     def __init__(self, parent=None, john_backend: Optional[JohnBackend] = None,
                  archive_path: str = ""):
@@ -364,7 +379,7 @@ class JohnDialog(QDialog):
     def _setup_ui(self):
         layout = QVBoxLayout(self)
 
-        # Status
+        # 状态 | Status
         if not self.john.is_available():
             warn = QLabel(
                 "WARNING: John the Ripper not found!\n"
@@ -373,7 +388,7 @@ class JohnDialog(QDialog):
             warn.setStyleSheet("color: red; font-weight: bold; padding: 8px;")
             layout.addWidget(warn)
 
-        # Target file
+        # 目标文件 | Target file
         target_group = QGroupBox("Target")
         target_layout = QHBoxLayout()
         self.target_edit = QLineEdit(self.archive_path)
@@ -384,7 +399,7 @@ class JohnDialog(QDialog):
         target_group.setLayout(target_layout)
         layout.addWidget(target_group)
 
-        # Hash extraction
+        # 哈希提取 | Hash extraction
         hash_group = QGroupBox("Hash Extraction")
         hash_layout = QHBoxLayout()
         self.extract_btn = QPushButton("Extract Hash")
@@ -395,7 +410,7 @@ class JohnDialog(QDialog):
         hash_group.setLayout(hash_layout)
         layout.addWidget(hash_group)
 
-        # Attack mode
+        # 攻击模式 | Attack mode
         attack_group = QGroupBox("Attack Configuration")
         attack_layout = QFormLayout()
 
@@ -461,7 +476,7 @@ class JohnDialog(QDialog):
         attack_group.setLayout(attack_layout)
         layout.addWidget(attack_group)
 
-        # Control buttons
+        # 控制按钮 | Control buttons
         ctrl_layout = QHBoxLayout()
         self.start_btn = QPushButton("Start Cracking")
         self.start_btn.clicked.connect(self._start_crack)
@@ -472,13 +487,13 @@ class JohnDialog(QDialog):
         ctrl_layout.addWidget(self.stop_btn)
         layout.addLayout(ctrl_layout)
 
-        # Progress
+        # 进度 | Progress
         self.progress_bar = QProgressBar()
-        self.progress_bar.setRange(0, 0)  # Indeterminate
+        self.progress_bar.setRange(0, 0)  # 不确定进度 | Indeterminate
         self.progress_bar.setVisible(False)
         layout.addWidget(self.progress_bar)
 
-        # Output
+        # 输出 | Output
         output_group = QGroupBox("Output")
         output_layout = QVBoxLayout()
         self.output_text = QPlainTextEdit()
@@ -493,7 +508,7 @@ class JohnDialog(QDialog):
         output_group.setLayout(output_layout)
         layout.addWidget(output_group)
 
-        # Close button
+        # 关闭按钮 | Close button
         close_btn = QPushButton("Close")
         close_btn.clicked.connect(self.close)
         layout.addWidget(close_btn)
@@ -516,7 +531,7 @@ class JohnDialog(QDialog):
 
     def _on_mode_changed(self, index):
         mode = self.mode_combo.currentData()
-        # Show/hide relevant fields
+        # 显示/隐藏相关字段 | Show/hide relevant fields
         for i in range(self.wordlist_layout.count()):
             w = self.wordlist_layout.itemAt(i).widget()
             if w:
@@ -537,7 +552,7 @@ class JohnDialog(QDialog):
             self.hash_file = hash_file
             self.hash_status.setText(f"Hash extracted: {hash_file}")
             self.hash_status.setStyleSheet("color: green;")
-            # Show hash content
+            # 显示哈希内容 | Show hash content
             try:
                 with open(hash_file) as f:
                     self.output_text.setPlainText(f"Hash content:\n{f.read()}")
@@ -622,7 +637,9 @@ class JohnDialog(QDialog):
 
 
 class PseudoEncryptionDialog(QDialog):
-    """Dialog showing pseudo-encryption detection results."""
+    """
+    伪加密检测对话框 | Dialog showing pseudo-encryption detection results.
+    """
 
     def __init__(self, parent=None, filepath: str = ""):
         super().__init__(parent)
@@ -644,7 +661,7 @@ class PseudoEncryptionDialog(QDialog):
         self.details_text.setFont(QFont("Monospace", 10))
         layout.addWidget(self.details_text)
 
-        # Patch button
+        # 补丁按钮 | Patch button
         btn_layout = QHBoxLayout()
         self.patch_btn = QPushButton("Remove Fake Encryption")
         self.patch_btn.clicked.connect(self._patch)
@@ -709,7 +726,9 @@ class PseudoEncryptionDialog(QDialog):
 
 
 class MainWindow(QMainWindow):
-    """Main application window."""
+    """
+    主应用窗口 | Main application window.
+    """
 
     def __init__(self):
         super().__init__()
@@ -736,12 +755,13 @@ class MainWindow(QMainWindow):
         self._restore_state()
 
     def _setup_ui(self):
+        """设置主界面 | Setup main UI"""
         central = QWidget()
         self.setCentralWidget(central)
         main_layout = QVBoxLayout(central)
         main_layout.setContentsMargins(4, 4, 4, 4)
 
-        # Address bar
+        # 地址栏 | Address bar
         addr_layout = QHBoxLayout()
         addr_layout.addWidget(QLabel("Archive:"))
         self.path_edit = QLineEdit()
@@ -749,7 +769,7 @@ class MainWindow(QMainWindow):
         self.path_edit.setPlaceholderText("Open an archive file...")
         addr_layout.addWidget(self.path_edit)
 
-        # Encoding selector in toolbar area
+        # 编码选择器 | Encoding selector in toolbar area
         addr_layout.addWidget(QLabel("Encoding:"))
         self.encoding_combo = QComboBox()
         self.encoding_combo.addItem("Auto Detect", "auto")
@@ -764,10 +784,10 @@ class MainWindow(QMainWindow):
 
         main_layout.addLayout(addr_layout)
 
-        # Main splitter: tree | comment panel
+        # 主分割器: 树视图 | 注释面板 | Main splitter: tree | comment panel
         self.main_splitter = QSplitter(Qt.Orientation.Horizontal)
 
-        # Left: file tree
+        # 左侧: 文件树 | Left: file tree
         left_widget = QWidget()
         left_layout = QVBoxLayout(left_widget)
         left_layout.setContentsMargins(0, 0, 0, 0)
@@ -786,14 +806,14 @@ class MainWindow(QMainWindow):
             header.setSectionResizeMode(i, QHeaderView.ResizeMode.ResizeToContents)
         left_layout.addWidget(self.tree)
 
-        # Info bar below tree
+        # 树下方的信息栏 | Info bar below tree
         self.info_label = QLabel("")
         self.info_label.setStyleSheet("padding: 4px; background: #f5f5f5;")
         left_layout.addWidget(self.info_label)
 
         self.main_splitter.addWidget(left_widget)
 
-        # Right: comment panel
+        # 右侧: 注释面板 | Right: comment panel
         right_widget = QWidget()
         right_layout = QVBoxLayout(right_widget)
         right_layout.setContentsMargins(0, 0, 0, 0)
@@ -811,7 +831,7 @@ class MainWindow(QMainWindow):
         self.comment_text.setFont(QFont("Sans Serif", 11))
         right_layout.addWidget(self.comment_text)
 
-        # Archive info
+        # 压缩包信息 | Archive info
         info_header = QLabel("Archive Info")
         info_header.setStyleSheet(
             "font-weight: bold; font-size: 13px; padding: 6px; "
@@ -829,15 +849,16 @@ class MainWindow(QMainWindow):
 
         main_layout.addWidget(self.main_splitter)
 
-        # Progress bar
+        # 进度条 | Progress bar
         self.progress_bar = QProgressBar()
         self.progress_bar.setVisible(False)
         main_layout.addWidget(self.progress_bar)
 
     def _setup_menubar(self):
+        """设置菜单栏 | Setup menubar"""
         menubar = self.menuBar()
 
-        # File menu
+        # 文件菜单 | File menu
         file_menu = menubar.addMenu("&File")
 
         open_action = QAction("&Open Archive...", self)
@@ -859,7 +880,7 @@ class MainWindow(QMainWindow):
         exit_action.triggered.connect(self.close)
         file_menu.addAction(exit_action)
 
-        # Actions menu
+        # 操作菜单 | Actions menu
         actions_menu = menubar.addMenu("&Actions")
 
         extract_action = QAction("&Extract...", self)
@@ -884,7 +905,7 @@ class MainWindow(QMainWindow):
         add_files_action.triggered.connect(self._add_files)
         actions_menu.addAction(add_files_action)
 
-        # Tools menu
+        # 工具菜单 | Tools menu
         tools_menu = menubar.addMenu("&Tools")
 
         john_action = QAction("&Password Recovery (John the Ripper)...", self)
@@ -898,7 +919,7 @@ class MainWindow(QMainWindow):
         bench_action.triggered.connect(self._benchmark)
         tools_menu.addAction(bench_action)
 
-        # Help menu
+        # 帮助菜单 | Help menu
         help_menu = menubar.addMenu("&Help")
 
         about_action = QAction("&About ArkManager", self)
@@ -906,6 +927,7 @@ class MainWindow(QMainWindow):
         help_menu.addAction(about_action)
 
     def _setup_toolbar(self):
+        """设置工具栏 | Setup toolbar"""
         toolbar = QToolBar("Main Toolbar")
         toolbar.setMovable(False)
         toolbar.setIconSize(QSize(24, 24))
@@ -946,9 +968,11 @@ class MainWindow(QMainWindow):
         toolbar.addWidget(john_btn)
 
     def _setup_statusbar(self):
+        """设置状态栏 | Setup statusbar"""
         self.statusBar().showMessage("Ready")
 
     def _restore_state(self):
+        """恢复窗口状态 | Restore window state"""
         geom = self.settings.value("geometry")
         if geom:
             self.restoreGeometry(geom)
@@ -957,14 +981,15 @@ class MainWindow(QMainWindow):
             self.restoreState(state)
 
     def closeEvent(self, event):
+        """窗口关闭事件 | Window close event"""
         self.settings.setValue("geometry", self.saveGeometry())
         self.settings.setValue("windowState", self.saveState())
         super().closeEvent(event)
 
-    # ---- Actions ----
+    # ---- 操作方法 | Actions ----
 
     def _get_encoding_options(self) -> tuple:
-        """Get current encoding mode and forced encoding from combo."""
+        """获取编码模式和强制编码 | Get encoding mode and forced encoding."""
         data = self.encoding_combo.currentData()
         if data == "auto":
             return "auto", "gbk"
@@ -976,6 +1001,7 @@ class MainWindow(QMainWindow):
         return "auto", "gbk"
 
     def _open_archive(self):
+        """打开压缩包对话框 | Open archive dialog"""
         exts = " ".join(f"*{e}" for e in ArchiveBackend.get_supported_extensions())
         path, _ = QFileDialog.getOpenFileName(
             self, "Open Archive", "",
@@ -985,7 +1011,7 @@ class MainWindow(QMainWindow):
             self._load_archive(path)
 
     def _load_archive(self, path: str, password: Optional[str] = None):
-        """Load and display an archive."""
+        """加载并显示压缩包 | Load and display an archive"""
         self.statusBar().showMessage(f"Loading: {path}")
         self.path_edit.setText(path)
         self.current_path = path
@@ -1004,7 +1030,7 @@ class MainWindow(QMainWindow):
 
         if info.error:
             if "Wrong password" in info.error or "encrypted" in info.error.lower():
-                # Ask for password
+                # 询问密码 | Ask for password
                 from PyQt6.QtWidgets import QInputDialog
                 pwd, ok = QInputDialog.getText(
                     self, "Password Required",
@@ -1028,17 +1054,17 @@ class MainWindow(QMainWindow):
         )
 
     def _populate_tree(self, info: ArchiveInfo):
-        """Populate the tree widget with archive entries."""
+        """用压缩包条目填充树组件 | Populate the tree widget with archive entries"""
         self.tree.clear()
 
-        # Build directory structure
+        # 构建目录结构 | Build directory structure
         dir_items = {}
 
         for entry in info.entries:
             parts = entry.filename.replace("\\", "/").split("/")
             parent = self.tree.invisibleRootItem()
 
-            # Build path hierarchy
+            # 构建路径层次 | Build path hierarchy
             current_path = ""
             for i, part in enumerate(parts):
                 if not part:
@@ -1072,7 +1098,7 @@ class MainWindow(QMainWindow):
 
         self.tree.expandAll()
 
-        # Update info label
+        # 更新信息标签 | Update info label
         total_size = sum(e.size for e in info.entries)
         total_compressed = sum(e.compressed_size for e in info.entries)
         ratio = (1 - total_compressed / total_size * 1.0) * 100 if total_size > 0 else 0
@@ -1084,8 +1110,8 @@ class MainWindow(QMainWindow):
         )
 
     def _show_archive_info(self, info: ArchiveInfo):
-        """Show archive comment and info in the right panel."""
-        # Comment
+        """在右侧面板显示压缩包注释和信息 | Show archive comment and info in the right panel"""
+        # 注释 | Comment
         if info.comment:
             self.comment_text.setText(info.comment)
             self.comment_text.setStyleSheet(
@@ -1096,7 +1122,7 @@ class MainWindow(QMainWindow):
             self.comment_text.clear()
             self.comment_text.setStyleSheet("")
 
-        # Archive info
+        # 压缩包信息 | Archive info
         info_lines = [
             f"Type: {info.type}",
             f"Path: {info.path}",
@@ -1116,11 +1142,12 @@ class MainWindow(QMainWindow):
         self.archive_info_text.setText("\n".join(info_lines))
 
     def _on_preview_encoding_changed(self, index):
-        """Re-load archive with new encoding settings."""
+        """用新编码设置重新加载压缩包 | Re-load archive with new encoding settings"""
         if self.current_path:
             self._load_archive(self.current_path)
 
     def _extract_archive(self):
+        """显示解压对话框 | Show extract dialog"""
         if not self.current_path:
             QMessageBox.information(self, "Info", "No archive opened.")
             return
@@ -1146,6 +1173,7 @@ class MainWindow(QMainWindow):
             self._worker.start()
 
     def _on_extract_finished(self, success, message):
+        """解压完成回调 | Extract finished callback"""
         self.progress_bar.setVisible(False)
         if success:
             self.statusBar().showMessage("Extraction complete.")
@@ -1156,6 +1184,7 @@ class MainWindow(QMainWindow):
         self._worker = None
 
     def _create_archive(self):
+        """显示创建压缩包对话框 | Show create archive dialog"""
         files, _ = QFileDialog.getOpenFileNames(
             self, "Select Files to Compress"
         )
@@ -1187,12 +1216,13 @@ class MainWindow(QMainWindow):
             self._worker.start()
 
     def _on_compress_finished(self, success, message):
+        """压缩完成回调 | Compress finished callback"""
         self.progress_bar.setVisible(False)
         if success:
             self.statusBar().showMessage("Archive created.")
             QMessageBox.information(self, "Success", message)
-            # Open the newly created archive
-            # Extract path from message
+            # 打开新创建的压缩包 | Open the newly created archive
+            # 从消息中提取路径 | Extract path from message
             if "Archive created:" in message:
                 path = message.split("Archive created:")[1].strip()
                 if os.path.exists(path):
@@ -1203,6 +1233,7 @@ class MainWindow(QMainWindow):
         self._worker = None
 
     def _test_archive(self):
+        """测试压缩包完整性 | Test archive integrity"""
         if not self.current_path:
             QMessageBox.information(self, "Info", "No archive opened.")
             return
@@ -1217,6 +1248,7 @@ class MainWindow(QMainWindow):
         self.statusBar().showMessage("Ready")
 
     def _detect_pseudo_encryption(self):
+        """检测伪加密 | Detect pseudo encryption"""
         if not self.current_path:
             QMessageBox.information(self, "Info", "No archive opened.")
             return
@@ -1225,6 +1257,7 @@ class MainWindow(QMainWindow):
         dialog.exec()
 
     def _add_files(self):
+        """向压缩包添加文件 | Add files to archive"""
         if not self.current_path:
             QMessageBox.information(self, "Info", "No archive opened.")
             return
@@ -1246,6 +1279,7 @@ class MainWindow(QMainWindow):
         self.statusBar().showMessage("Ready")
 
     def _open_john(self):
+        """打开 John the Ripper 对话框 | Open John the Ripper dialog"""
         dialog = JohnDialog(
             self,
             john_backend=self.john,
@@ -1254,6 +1288,7 @@ class MainWindow(QMainWindow):
         dialog.exec()
 
     def _benchmark(self):
+        """运行 7z 基准测试 | Run 7z benchmark"""
         self.statusBar().showMessage("Running 7z benchmark...")
         result = self.backend._run_7z(["b"], timeout=120)
         output = result.stdout.decode("utf-8", errors="replace")
@@ -1274,6 +1309,7 @@ class MainWindow(QMainWindow):
         self.statusBar().showMessage("Ready")
 
     def _show_about(self):
+        """显示关于对话框 | Show about dialog"""
         QMessageBox.about(
             self, f"About {__app_name__}",
             f"<h2>{__app_name__} v{__version__}</h2>"
@@ -1294,7 +1330,7 @@ class MainWindow(QMainWindow):
 
     @staticmethod
     def _format_size(size: int) -> str:
-        """Format byte size to human readable."""
+        """格式化字节为可读大小 | Format byte size to human readable"""
         if size < 0:
             return ""
         for unit in ("B", "KB", "MB", "GB", "TB"):
@@ -1304,10 +1340,12 @@ class MainWindow(QMainWindow):
         return f"{size:.1f} PB"
 
     def dragEnterEvent(self, event):
+        """拖入事件 | Drag enter event"""
         if event.mimeData().hasUrls():
             event.acceptProposedAction()
 
     def dropEvent(self, event):
+        """放下事件 | Drop event"""
         urls = event.mimeData().urls()
         if urls:
             path = urls[0].toLocalFile()

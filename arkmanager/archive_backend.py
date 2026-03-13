@@ -1,4 +1,4 @@
-"""Backend for archive operations using the 7z command."""
+"""使用7z命令进行归档操作的后端 | Backend for archive operations using the 7z command."""
 
 import os
 import subprocess
@@ -13,9 +13,9 @@ from .encoding_utils import (
 
 @dataclass
 class ArchiveEntry:
-    """Represents a single entry in an archive."""
+    """表示归档文件中的单个条目 | Represents a single entry in an archive."""
     filename: str
-    original_filename: str  # Raw filename before encoding fix
+    original_filename: str  # 编码修复前的原始文件名 | Raw filename before encoding fix
     size: int = 0
     compressed_size: int = 0
     modified: str = ""
@@ -28,7 +28,7 @@ class ArchiveEntry:
 
 @dataclass
 class ArchiveInfo:
-    """Information about an archive."""
+    """归档文件的信息 | Information about an archive."""
     path: str
     type: str = ""
     method: str = ""
@@ -43,7 +43,7 @@ class ArchiveInfo:
 
 
 class ArchiveBackend:
-    """Backend that calls 7z CLI for archive operations."""
+    """调用7z CLI进行归档操作的后端 | Backend that calls 7z CLI for archive operations."""
 
     SUPPORTED_FORMATS = [
         "7z", "zip", "tar", "gz", "bz2", "xz", "rar", "cab", "iso",
@@ -57,7 +57,7 @@ class ArchiveBackend:
         self._verify_7z()
 
     def _verify_7z(self):
-        """Verify 7z is available."""
+        """验证7z是否可用 | Verify 7z is available."""
         try:
             subprocess.run(
                 [self.seven_zip_path],
@@ -75,15 +75,15 @@ class ArchiveBackend:
 
     def _run_7z(self, args: List[str], password: Optional[str] = None,
                 encoding: str = "utf-8", timeout: int = 300) -> subprocess.CompletedProcess:
-        """Run 7z with given arguments."""
+        """使用给定参数运行7z | Run 7z with given arguments."""
         cmd = [self.seven_zip_path] + args
 
         if password is not None:
-            # Handle Chinese passwords: pass as-is, 7z handles encoding
+            # 处理中文密码：按原样传递 | Handle Chinese passwords: pass as-is
             cmd.append(f"-p{password}")
 
         env = os.environ.copy()
-        # Force UTF-8 locale for 7z output
+        # 强制7z输出使用UTF-8区域设置 | Force UTF-8 locale for 7z output
         env["LANG"] = "en_US.UTF-8"
         env["LC_ALL"] = "en_US.UTF-8"
 
@@ -101,22 +101,22 @@ class ArchiveBackend:
     def list_archive(self, filepath: str, password: Optional[str] = None,
                      encoding_mode: str = "auto",
                      forced_encoding: str = "gbk") -> ArchiveInfo:
-        """List contents of an archive with encoding support.
+        """列出归档文件内容并支持编码处理 | List contents of an archive with encoding support.
 
         Args:
-            filepath: Path to the archive.
-            password: Optional password for encrypted archives.
-            encoding_mode: "auto", "force", or "none".
-            forced_encoding: Encoding to use when encoding_mode is "force".
+            filepath: 归档文件路径 | Path to the archive.
+            password: 加密归档文件的可选密码 | Optional password for encrypted archives.
+            encoding_mode: "auto"、"force"或"none" | "auto", "force", or "none".
+            forced_encoding: 强制编码 | Encoding when mode is "force".
         """
         info = ArchiveInfo(path=filepath)
 
-        # Get technical listing
+        # 获取技术列表 | Get technical listing
         args = ["l", "-slt", filepath]
         result = self._run_7z(args, password=password)
 
         stdout = result.stdout
-        # Try decoding output
+        # 尝试解码输出 | Try decoding output
         try:
             output = stdout.decode("utf-8")
         except UnicodeDecodeError:
@@ -135,10 +135,10 @@ class ArchiveBackend:
                 info.error = stderr_text or output
             return info
 
-        # Parse archive info
+        # 解析归档信息 | Parse archive info
         info = self._parse_list_output(output, filepath, encoding_mode, forced_encoding)
 
-        # Get comment if it's a zip file
+        # 获取zip文件注释 | Get comment if it's a zip file
         if filepath.lower().endswith(".zip"):
             comment = self._get_zip_comment(filepath)
             if comment:
@@ -148,14 +148,14 @@ class ArchiveBackend:
 
     def _parse_list_output(self, output: str, filepath: str,
                            encoding_mode: str, forced_encoding: str) -> ArchiveInfo:
-        """Parse 7z l -slt output into ArchiveInfo."""
+        """将7z l -slt输出解析为ArchiveInfo | Parse 7z l -slt output into ArchiveInfo."""
         info = ArchiveInfo(path=filepath)
         current_entry = None
 
         for line in output.split("\n"):
             line = line.strip()
 
-            # Archive-level properties
+            # 归档级属性 | Archive-level properties
             if line.startswith("Type = "):
                 info.type = line[7:]
             elif line.startswith("Physical Size = "):
@@ -182,7 +182,7 @@ class ArchiveBackend:
             elif line.startswith("Encrypted = +"):
                 info.encrypted = True
 
-            # Entry-level properties
+            # 条目级属性 | Entry-level properties
             elif line.startswith("Path = "):
                 if current_entry:
                     info.entries.append(current_entry)
@@ -223,7 +223,7 @@ class ArchiveBackend:
 
     def _fix_filename(self, filename: str, encoding_mode: str,
                       forced_encoding: str) -> str:
-        """Fix filename encoding based on mode."""
+        """根据模式修复文件名编码 | Fix filename encoding based on mode."""
         if encoding_mode == "none":
             return filename
         elif encoding_mode == "force":
@@ -232,12 +232,12 @@ class ArchiveBackend:
             return auto_detect_zip_filename(filename)
 
     def _get_zip_comment(self, filepath: str) -> str:
-        """Extract ZIP archive comment."""
+        """提取ZIP归档注释 | Extract ZIP archive comment."""
         try:
             import zipfile
             with zipfile.ZipFile(filepath, "r") as zf:
                 if zf.comment:
-                    # Try UTF-8 first, then GBK, then fallback
+                    # 先尝试UTF-8，然后GBK，最后降级处理 | Try UTF-8 first, then GBK, then fallback
                     for enc in ("utf-8", "gbk", "gb18030", "latin-1"):
                         try:
                             return zf.comment.decode(enc)
@@ -256,25 +256,25 @@ class ArchiveBackend:
                 forced_encoding: str = "gbk",
                 overwrite: bool = True,
                 progress_callback: Optional[Callable[[str, int], None]] = None) -> tuple:
-        """Extract archive to output_dir.
+        """提取归档文件到输出目录 | Extract archive to output_dir.
 
         Args:
-            filepath: Archive path.
-            output_dir: Destination directory.
-            password: Optional password.
-            entries: Optional list of specific entries to extract.
-            create_parent_dir: Create a parent folder named after the archive.
-            encoding_mode: "auto", "force", or "none".
-            forced_encoding: Encoding when mode is "force".
-            overwrite: Overwrite existing files.
-            progress_callback: Callback(filename, percent).
+            filepath: 归档文件路径 | Archive path.
+            output_dir: 目标目录 | Destination directory.
+            password: 可选密码 | Optional password.
+            entries: 要提取的特定条目列表 | Optional list of entries to extract.
+            create_parent_dir: 创建父文件夹 | Create a parent folder.
+            encoding_mode: "auto"、"force"或"none" | "auto", "force", or "none".
+            forced_encoding: mode为"force"时的编码 | Encoding when mode is "force".
+            overwrite: 覆盖现有文件 | Overwrite existing files.
+            progress_callback: 回调函数(文件名, 百分比) | Callback(filename, percent).
 
         Returns:
-            (success: bool, message: str)
+            (成功: bool, 消息: str) | (success: bool, message: str)
         """
         if create_parent_dir:
             base_name = os.path.splitext(os.path.basename(filepath))[0]
-            # Handle double extensions like .tar.gz
+            # 处理如.tar.gz的双扩展名 | Handle double extensions like .tar.gz
             if base_name.endswith(".tar"):
                 base_name = base_name[:-4]
             output_dir = os.path.join(output_dir, base_name)
@@ -283,9 +283,9 @@ class ArchiveBackend:
         args = ["x", filepath, f"-o{output_dir}"]
 
         if overwrite:
-            args.append("-aoa")  # Overwrite all
+            args.append("-aoa")  # 覆盖所有 | Overwrite all
         else:
-            args.append("-aos")  # Skip existing
+            args.append("-aos")  # 跳过现有 | Skip existing
 
         if entries:
             args.extend(entries)
@@ -298,7 +298,7 @@ class ArchiveBackend:
             output = ""
 
         if result.returncode == 0:
-            # If encoding fix needed, rename extracted files
+            # 如果需要编码修复，重命名提取的文件 | If encoding fix needed, rename extracted files
             if encoding_mode != "none":
                 self._fix_extracted_filenames(
                     output_dir, encoding_mode, forced_encoding
@@ -310,7 +310,7 @@ class ArchiveBackend:
 
     def _fix_extracted_filenames(self, directory: str, encoding_mode: str,
                                  forced_encoding: str):
-        """Rename files with garbled names after extraction."""
+        """提取后重命名乱码文件名 | Rename files with garbled names after extraction."""
         for root, dirs, files in os.walk(directory, topdown=False):
             for name in files + dirs:
                 fixed = self._fix_filename(name, encoding_mode, forced_encoding)
@@ -334,42 +334,42 @@ class ArchiveBackend:
                  encoding_mode: str = "auto",
                  forced_encoding: str = "gbk",
                  progress_callback: Optional[Callable[[str, int], None]] = None) -> tuple:
-        """Create a new archive.
+        """创建新的归档文件 | Create a new archive.
 
         Returns:
-            (success: bool, message: str)
+            (成功: bool, 消息: str) | (success: bool, message: str)
         """
         args = ["a", output_path]
 
-        # Format
+        # 格式 | Format
         args.append(f"-t{format}")
 
-        # Compression level (0-9)
+        # 压缩级别(0-9) | Compression level (0-9)
         args.append(f"-mx={compression_level}")
 
-        # Method
+        # 方法 | Method
         if method:
             args.append(f"-m0={method}")
 
-        # Solid mode (7z only)
+        # 固实模式(仅7z) | Solid mode (7z only)
         if format == "7z":
             args.append(f"-ms={'on' if solid else 'off'}")
 
-        # Encrypt filenames (7z only)
+        # 加密文件名(仅7z) | Encrypt filenames (7z only)
         if encrypt_filenames and password and format == "7z":
             args.append("-mhe=on")
 
-        # Volume splitting
+        # 分卷 | Volume splitting
         if volumes:
             args.append(f"-v{volumes}")
 
-        # Encoding for ZIP
+        # ZIP编码 | Encoding for ZIP
         if format == "zip":
             if encoding_mode == "force" and forced_encoding.lower() in ("gbk", "gb2312", "gb18030"):
-                # Use codepage for ZIP filenames
+                # 使用ZIP文件名代码页 | Use codepage for ZIP filenames
                 args.append("-mcp=936")  # CP936 = GBK
             else:
-                args.append("-mcu=on")  # Force UTF-8 for filenames
+                args.append("-mcu=on")  # 强制文件名使用UTF-8 | Force UTF-8 for filenames
 
         args.extend(input_paths)
 
@@ -387,10 +387,10 @@ class ArchiveBackend:
             return False, stderr or output
 
     def test_archive(self, filepath: str, password: Optional[str] = None) -> tuple:
-        """Test archive integrity.
+        """测试归档文件完整性 | Test archive integrity.
 
         Returns:
-            (success: bool, message: str)
+            (成功: bool, 消息: str) | (success: bool, message: str)
         """
         args = ["t", filepath]
         result = self._run_7z(args, password=password)
@@ -408,7 +408,7 @@ class ArchiveBackend:
 
     @staticmethod
     def get_supported_extensions() -> List[str]:
-        """Get list of file extensions we can handle."""
+        """获取可处理的文件扩展名列表 | Get list of file extensions we can handle."""
         return [
             ".7z", ".zip", ".rar", ".tar", ".gz", ".bz2", ".xz",
             ".tar.gz", ".tgz", ".tar.bz2", ".tbz2", ".tar.xz", ".txz",
