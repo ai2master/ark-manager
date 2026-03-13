@@ -9,7 +9,9 @@ Source0:        %{name}-%{version}.tar.gz
 
 BuildArch:      noarch
 BuildRequires:  python3-devel
+BuildRequires:  python3-pip
 BuildRequires:  python3-setuptools
+BuildRequires:  python3-wheel
 
 Requires:       python3 >= 3.9
 Requires:       python3-qt6
@@ -28,10 +30,11 @@ password support, and John the Ripper integration for password recovery.
 %autosetup
 
 %build
-%py3_build
+# 使用 pyproject.toml 构建 | Build using pyproject.toml
+%{python3} -m pip wheel --no-deps --no-build-isolation -w dist .
 
 %install
-%py3_install
+%{python3} -m pip install --no-deps --root=%{buildroot} --prefix=%{_prefix} dist/*.whl
 install -Dm644 resources/arkmanager.desktop %{buildroot}%{_datadir}/applications/arkmanager.desktop
 install -Dm644 resources/arkmanager.svg %{buildroot}%{_datadir}/icons/hicolor/scalable/apps/arkmanager.svg
 
@@ -39,7 +42,7 @@ install -Dm644 resources/arkmanager.svg %{buildroot}%{_datadir}/icons/hicolor/sc
 %license LICENSE
 %doc README.md
 %{python3_sitelib}/arkmanager/
-%{python3_sitelib}/arkmanager-*.egg-info/
+%{python3_sitelib}/arkmanager-*.dist-info/
 %{_bindir}/arkmanager
 %{_datadir}/applications/arkmanager.desktop
 %{_datadir}/icons/hicolor/scalable/apps/arkmanager.svg
