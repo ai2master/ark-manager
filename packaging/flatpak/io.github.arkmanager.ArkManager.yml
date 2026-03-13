@@ -24,28 +24,37 @@ modules:
         url: https://github.com/p7zip-project/p7zip/archive/refs/tags/v17.05.tar.gz
         sha256: d2788f892571058c08d27095c22154579dfefb807ebe357d145ab2ddddefb1a6
 
-  - name: chardet
+  - name: python3-chardet
     buildsystem: simple
     build-commands:
-      - pip3 install --no-deps --prefix=/app .
+      - pip3 install --no-deps --no-build-isolation --prefix=/app .
     sources:
       - type: archive
-        url: https://files.pythonhosted.org/packages/f3/0d/f7b40e940b4fb22e95b98e7cffa05fe45e94e1e7bca8e91ef3f15e6a543c/chardet-5.2.0.tar.gz
-        sha256: 1b3b6ff479a8c8857c9091d1fc0145cdef078d0fa3e6e5407d90c0a0e3ebf2b3
+        url: https://files.pythonhosted.org/packages/f3/0d/f7b6ab21ec75897ed80c17d79b15951a719226b9fababf1e40ea74d69079/chardet-5.2.0.tar.gz
+        sha256: 1b3b6ff479a8c414bc3fa2c0852995695c4a026dcd6d0633b2dd092ca39c1cf7
 
-  - name: PyQt6
+  - name: python3-PyQt6-sip
     buildsystem: simple
     build-commands:
-      - pip3 install --no-deps --prefix=/app PyQt6 PyQt6-Qt6 PyQt6-sip
+      - pip3 install --no-deps --no-build-isolation --prefix=/app .
     sources:
       - type: archive
-        url: https://files.pythonhosted.org/packages/source/P/PyQt6/PyQt6-6.7.0.tar.gz
+        url: https://files.pythonhosted.org/packages/3a/24/2b64fdd1042bbc498f13a8a3125d3beeca1f69e9e66543077a95202f21be/PyQt6_sip-13.8.1.tar.gz
+        sha256: e0aef84480de79818d46c632da5b59510252e38d74e48e8b4c32e2b20e20e135
+
+  - name: python3-PyQt6
+    buildsystem: simple
+    build-commands:
+      - sip-install --target-dir /app/lib/python3.11/site-packages --no-tools --confirm-license
+    sources:
+      - type: archive
+        url: https://files.pythonhosted.org/packages/ce/c6/99127e39e62f0c887a39d9644012867874a68983bd0fe641f00aa796de88/PyQt6-6.7.0.tar.gz
         sha256: 3d31b2c59dc378ee26e16586d9469842483588142fc377280aad4a7d2fe37f75
 
   - name: arkmanager
     buildsystem: simple
     build-commands:
-      - pip3 install --no-deps --prefix=/app .
+      - pip3 install --no-deps --no-build-isolation --prefix=/app .
       - install -Dm644 resources/arkmanager.desktop /app/share/applications/io.github.arkmanager.ArkManager.desktop
       - install -Dm644 resources/arkmanager.svg /app/share/icons/hicolor/scalable/apps/io.github.arkmanager.ArkManager.svg
     sources:

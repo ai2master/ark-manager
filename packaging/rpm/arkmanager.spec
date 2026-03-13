@@ -44,6 +44,7 @@ install -Dm644 resources/arkmanager.svg %{buildroot}%{_datadir}/icons/hicolor/sc
 %{python3_sitelib}/arkmanager/
 %{python3_sitelib}/arkmanager-*.dist-info/
 %{_bindir}/arkmanager
+%{_bindir}/arkmanager-gui
 %{_datadir}/applications/arkmanager.desktop
 %{_datadir}/icons/hicolor/scalable/apps/arkmanager.svg
 
