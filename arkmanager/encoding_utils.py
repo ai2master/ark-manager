@@ -3,6 +3,9 @@
 用于处理压缩包文件名 | For handling archive filenames.
 """
 
+import mmap
+import os
+import shutil
 import struct
 from typing import Optional
 
@@ -109,10 +112,23 @@ def detect_zip_pseudo_encryption(filepath: str) -> dict:
     }
 
     try:
-        with open(filepath, "rb") as f:
-            data = f.read()
+        f = open(filepath, "rb")
     except (OSError, IOError) as e:
         result["details"].append(f"Cannot read file: {e}")
+        return result
+
+    try:
+        # 使用mmap避免将整个文件加载到Python堆内存，OS自动管理内存页
+        # Use mmap instead of f.read() for memory efficiency; OS manages pages
+        data = mmap.mmap(f.fileno(), 0, access=mmap.ACCESS_READ)
+    except ValueError:
+        # 空文件无法mmap | Empty file cannot be mmapped
+        f.close()
+        result["details"].append("File is empty.")
+        return result
+    except (OSError, IOError) as e:
+        f.close()
+        result["details"].append(f"Cannot memory-map file: {e}")
         return result
 
     # 收集本地文件头条目 | Collect LFH entries
@@ -227,21 +243,44 @@ def detect_zip_pseudo_encryption(filepath: str) -> dict:
         else:
             result["details"].append("No encryption flags detected.")
 
+    # 释放mmap和文件句柄 | Release mmap and file handle
+    data.close()
+    f.close()
     return result
 
 
 def patch_pseudo_encryption(filepath: str, output_path: str) -> bool:
     """从ZIP文件中移除伪加密标志 | Remove fake encryption flags.
 
-    清除加密标志位 | Clears encryption flag bit from headers.
+    先复制文件到目标路径，再通过mmap就地修改，避免将整个文件读入Python堆内存。
+    Copy file first, then patch in-place via mmap to avoid loading into Python heap.
     """
     SIG_LFH = b"\x50\x4b\x03\x04"
     SIG_CDH = b"\x50\x4b\x01\x02"
 
+    # 复制文件到目标路径 | Copy file to output path
     try:
-        with open(filepath, "rb") as f:
-            data = bytearray(f.read())
+        if os.path.realpath(filepath) != os.path.realpath(output_path):
+            shutil.copy2(filepath, output_path)
     except (OSError, IOError):
+        return False
+
+    # 打开副本进行mmap就地修改 | Open copy for mmap in-place patching
+    try:
+        f = open(output_path, "r+b")
+    except (OSError, IOError):
+        return False
+
+    try:
+        data = mmap.mmap(f.fileno(), 0)
+    except (ValueError, OSError):
+        f.close()
+        # 清理失败的副本 | Clean up failed copy
+        if os.path.realpath(filepath) != os.path.realpath(output_path):
+            try:
+                os.unlink(output_path)
+            except OSError:
+                pass
         return False
 
     patched = 0
@@ -269,11 +308,16 @@ def patch_pseudo_encryption(filepath: str, output_path: str) -> bool:
             patched += 1
         pos += 4
 
-    if patched > 0:
-        try:
-            with open(output_path, "wb") as f:
-                f.write(data)
-            return True
-        except (OSError, IOError):
-            return False
-    return False
+    # 释放mmap和文件句柄 | Release mmap and file handle
+    data.close()
+    f.close()
+
+    if patched == 0:
+        # 无需修补，删除副本 | Nothing patched, remove copy
+        if os.path.realpath(filepath) != os.path.realpath(output_path):
+            try:
+                os.unlink(output_path)
+            except OSError:
+                pass
+        return False
+    return True
