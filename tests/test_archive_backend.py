@@ -43,7 +43,8 @@ class TestArchiveBackend:
         return str(zip_path)
 
     def test_backend_init(self, backend):
-        assert backend.seven_zip_path == "7z"
+        # shutil.which() 解析后路径可能为绝对路径 | Path may be absolute after shutil.which()
+        assert backend.seven_zip_path.endswith("7z")
 
     def test_list_archive(self, backend, sample_zip):
         info = backend.list_archive(sample_zip)
