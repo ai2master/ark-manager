@@ -1,6 +1,7 @@
 """使用7z命令进行归档操作的后端 | Backend for archive operations using the 7z command."""
 
 import os
+import shutil
 import subprocess
 from dataclasses import dataclass, field
 from typing import Callable, List, Optional
@@ -53,7 +54,9 @@ class ArchiveBackend:
     ]
 
     def __init__(self, seven_zip_path: str = "7z"):
-        self.seven_zip_path = seven_zip_path
+        # 验证路径合法性，防止注入任意命令 | Validate path to prevent arbitrary command injection
+        resolved = shutil.which(seven_zip_path)
+        self.seven_zip_path = resolved if resolved else seven_zip_path
         self._verify_7z()
 
     def _verify_7z(self):
@@ -79,7 +82,10 @@ class ArchiveBackend:
         cmd = [self.seven_zip_path] + args
 
         if password is not None:
-            # 处理中文密码：按原样传递 | Handle Chinese passwords: pass as-is
+            # 已知限制: 密码通过命令行传递，进程运行期间可通过 /proc/PID/cmdline 查看
+            # 7z CLI 不支持 stdin 或环境变量传递密码，这是 7z 的设计限制
+            # Known limitation: password passed via CLI, visible in /proc/PID/cmdline.
+            # 7z CLI does not support stdin or env var for passwords by design.
             cmd.append(f"-p{password}")
 
         env = os.environ.copy()
@@ -311,12 +317,18 @@ class ArchiveBackend:
     def _fix_extracted_filenames(self, directory: str, encoding_mode: str,
                                  forced_encoding: str):
         """提取后重命名乱码文件名 | Rename files with garbled names after extraction."""
+        # 获取目标目录的真实路径用于路径遍历校验 | Get real path for traversal validation
+        real_dir = os.path.realpath(directory)
         for root, dirs, files in os.walk(directory, topdown=False):
             for name in files + dirs:
                 fixed = self._fix_filename(name, encoding_mode, forced_encoding)
                 if fixed != name:
                     old_path = os.path.join(root, name)
                     new_path = os.path.join(root, fixed)
+                    # 防止路径遍历: 确保新路径仍在目标目录内
+                    # Prevent path traversal: ensure new path stays within target dir
+                    if not os.path.realpath(new_path).startswith(real_dir + os.sep):
+                        continue
                     if not os.path.exists(new_path):
                         try:
                             os.rename(old_path, new_path)

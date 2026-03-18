@@ -587,7 +587,20 @@ class JohnDialog(QDialog):
 
         extra = self.extra_args_edit.text().strip()
         if extra:
-            kwargs["extra_args"] = extra.split()
+            # 白名单验证john参数，防止恶意参数注入 | Whitelist john args to prevent injection
+            ALLOWED_JOHN_ARGS = {
+                "--fork", "--rules", "--node", "--session",
+                "--restore", "--pot", "--encoding", "--min-length",
+                "--max-length", "--list", "--skip-self-tests",
+            }
+            args_list = extra.split()
+            safe_args = []
+            for arg in args_list:
+                arg_name = arg.split("=")[0] if "=" in arg else arg
+                if arg_name in ALLOWED_JOHN_ARGS:
+                    safe_args.append(arg)
+            if safe_args:
+                kwargs["extra_args"] = safe_args
 
         self.start_btn.setEnabled(False)
         self.stop_btn.setEnabled(True)
@@ -633,6 +646,12 @@ class JohnDialog(QDialog):
         if self._worker and self._worker.isRunning():
             self.john.stop()
             self._worker.wait(5000)
+        # 清理临时hash文件 | Clean up temp hash file
+        if self.hash_file and os.path.exists(self.hash_file):
+            try:
+                os.unlink(self.hash_file)
+            except OSError:
+                pass
         super().closeEvent(event)
 
 
@@ -988,6 +1007,13 @@ class MainWindow(QMainWindow):
 
     # ---- 操作方法 | Actions ----
 
+    def _is_worker_busy(self) -> bool:
+        """检查工作线程是否正在运行 | Check if a worker thread is already running."""
+        if self._worker and self._worker.isRunning():
+            QMessageBox.information(self, "Info", "An operation is already in progress.")
+            return True
+        return False
+
     def _get_encoding_options(self) -> tuple:
         """获取编码模式和强制编码 | Get encoding mode and forced encoding."""
         data = self.encoding_combo.currentData()
@@ -1151,6 +1177,8 @@ class MainWindow(QMainWindow):
         if not self.current_path:
             QMessageBox.information(self, "Info", "No archive opened.")
             return
+        if self._is_worker_busy():
+            return
 
         dialog = ExtractDialog(self, self.current_path)
         if dialog.exec() == QDialog.DialogCode.Accepted:
@@ -1185,6 +1213,8 @@ class MainWindow(QMainWindow):
 
     def _create_archive(self):
         """显示创建压缩包对话框 | Show create archive dialog"""
+        if self._is_worker_busy():
+            return
         files, _ = QFileDialog.getOpenFileNames(
             self, "Select Files to Compress"
         )
@@ -1233,19 +1263,30 @@ class MainWindow(QMainWindow):
         self._worker = None
 
     def _test_archive(self):
-        """测试压缩包完整性 | Test archive integrity"""
+        """测试压缩包完整性（异步） | Test archive integrity (async)"""
         if not self.current_path:
             QMessageBox.information(self, "Info", "No archive opened.")
             return
+        if self._is_worker_busy():
+            return
 
         self.statusBar().showMessage("Testing archive...")
-        success, message = self.backend.test_archive(self.current_path)
+        self.progress_bar.setRange(0, 0)
+        self.progress_bar.setVisible(True)
 
+        self._worker = WorkerThread(self.backend.test_archive, self.current_path)
+        self._worker.finished.connect(self._on_test_finished)
+        self._worker.start()
+
+    def _on_test_finished(self, success, message):
+        """测试完成回调 | Test finished callback"""
+        self.progress_bar.setVisible(False)
         if success:
             QMessageBox.information(self, "Test Result", message)
         else:
             QMessageBox.warning(self, "Test Result", message)
         self.statusBar().showMessage("Ready")
+        self._worker = None
 
     def _detect_pseudo_encryption(self):
         """检测伪加密 | Detect pseudo encryption"""
@@ -1257,9 +1298,11 @@ class MainWindow(QMainWindow):
         dialog.exec()
 
     def _add_files(self):
-        """向压缩包添加文件 | Add files to archive"""
+        """向压缩包添加文件（异步） | Add files to archive (async)"""
         if not self.current_path:
             QMessageBox.information(self, "Info", "No archive opened.")
+            return
+        if self._is_worker_busy():
             return
 
         files, _ = QFileDialog.getOpenFileNames(self, "Add Files to Archive")
@@ -1267,16 +1310,31 @@ class MainWindow(QMainWindow):
             return
 
         self.statusBar().showMessage("Adding files...")
-        args = ["a", self.current_path] + files
-        result = self.backend._run_7z(args)
+        self.progress_bar.setRange(0, 0)
+        self.progress_bar.setVisible(True)
 
-        if result.returncode == 0:
-            QMessageBox.information(self, "Success", "Files added to archive.")
+        def _do_add(backend, archive_path, file_list):
+            """添加文件工作函数 | Worker function for adding files."""
+            result = backend._run_7z(["a", archive_path] + file_list)
+            if result.returncode == 0:
+                return True, "Files added to archive."
+            stderr = result.stderr.decode("utf-8", errors="replace")
+            return False, stderr
+
+        self._worker = WorkerThread(_do_add, self.backend, self.current_path, files)
+        self._worker.finished.connect(self._on_add_files_finished)
+        self._worker.start()
+
+    def _on_add_files_finished(self, success, message):
+        """添加文件完成回调 | Add files finished callback"""
+        self.progress_bar.setVisible(False)
+        if success:
+            QMessageBox.information(self, "Success", message)
             self._load_archive(self.current_path)
         else:
-            stderr = result.stderr.decode("utf-8", errors="replace")
-            QMessageBox.warning(self, "Error", stderr)
+            QMessageBox.warning(self, "Error", message)
         self.statusBar().showMessage("Ready")
+        self._worker = None
 
     def _open_john(self):
         """打开 John the Ripper 对话框 | Open John the Ripper dialog"""
@@ -1288,10 +1346,28 @@ class MainWindow(QMainWindow):
         dialog.exec()
 
     def _benchmark(self):
-        """运行 7z 基准测试 | Run 7z benchmark"""
+        """运行 7z 基准测试（异步） | Run 7z benchmark (async)"""
+        if self._is_worker_busy():
+            return
+
         self.statusBar().showMessage("Running 7z benchmark...")
-        result = self.backend._run_7z(["b"], timeout=120)
-        output = result.stdout.decode("utf-8", errors="replace")
+        self.progress_bar.setRange(0, 0)
+        self.progress_bar.setVisible(True)
+
+        def _do_benchmark(backend):
+            """基准测试工作函数 | Worker function for benchmark."""
+            result = backend._run_7z(["b"], timeout=120)
+            output = result.stdout.decode("utf-8", errors="replace")
+            return True, output
+
+        self._worker = WorkerThread(_do_benchmark, self.backend)
+        self._worker.finished.connect(self._on_benchmark_finished)
+        self._worker.start()
+
+    def _on_benchmark_finished(self, success, message):
+        """基准测试完成回调 | Benchmark finished callback"""
+        self.progress_bar.setVisible(False)
+        self.statusBar().showMessage("Ready")
 
         dialog = QDialog(self)
         dialog.setWindowTitle("7z Benchmark")
@@ -1300,13 +1376,13 @@ class MainWindow(QMainWindow):
         text = QPlainTextEdit()
         text.setReadOnly(True)
         text.setFont(QFont("Monospace", 10))
-        text.setPlainText(output)
+        text.setPlainText(message)
         layout.addWidget(text)
         close_btn = QPushButton("Close")
         close_btn.clicked.connect(dialog.close)
         layout.addWidget(close_btn)
         dialog.exec()
-        self.statusBar().showMessage("Ready")
+        self._worker = None
 
     def _show_about(self):
         """显示关于对话框 | Show about dialog"""
@@ -1345,9 +1421,19 @@ class MainWindow(QMainWindow):
             event.acceptProposedAction()
 
     def dropEvent(self, event):
-        """放下事件 | Drop event"""
+        """放下事件，验证文件格式 | Drop event with format validation"""
         urls = event.mimeData().urls()
         if urls:
             path = urls[0].toLocalFile()
             if path:
-                self._load_archive(path)
+                # 验证文件扩展名 | Validate file extension
+                lower_path = path.lower()
+                supported = ArchiveBackend.get_supported_extensions()
+                # 检查双扩展名(如.tar.gz) | Check double extensions like .tar.gz
+                matched = any(lower_path.endswith(ext) for ext in supported)
+                if matched:
+                    self._load_archive(path)
+                else:
+                    self.statusBar().showMessage(
+                        f"Unsupported format: {os.path.basename(path)}"
+                    )
