@@ -48,14 +48,15 @@ cp resources/arkmanager.desktop "${APP_DIR}/usr/share/applications/"
 cp resources/arkmanager.svg "${APP_DIR}/arkmanager.svg"
 cp resources/arkmanager.svg "${APP_DIR}/usr/share/icons/hicolor/scalable/apps/"
 
-# Download appimagetool if not present
+# 下载 appimagetool | Download appimagetool if not present
 if [ ! -f appimagetool ]; then
     wget -q "https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-x86_64.AppImage" -O appimagetool
     chmod +x appimagetool
 fi
 
-# Build AppImage
-ARCH=x86_64 ./appimagetool "${APP_DIR}" "${PACKAGE_NAME}-${VERSION}-x86_64.AppImage"
+# 使用 gzip 压缩以保证最大兼容性（默认 zstd 在旧系统不支持）
+# Build AppImage with gzip compression for maximum compatibility (zstd unsupported on older systems)
+ARCH=x86_64 ./appimagetool --comp gzip "${APP_DIR}" "${PACKAGE_NAME}-${VERSION}-x86_64.AppImage"
 
 echo "AppImage built: ${PACKAGE_NAME}-${VERSION}-x86_64.AppImage"
 rm -rf "${APP_DIR}"
