@@ -48,18 +48,20 @@ cp resources/arkmanager.desktop "${APP_DIR}/usr/share/applications/"
 cp resources/arkmanager.svg "${APP_DIR}/arkmanager.svg"
 cp resources/arkmanager.svg "${APP_DIR}/usr/share/icons/hicolor/scalable/apps/"
 
-# 下载 appimagetool | Download appimagetool if not present
+# 下载并解压 appimagetool | Download and extract appimagetool
+# 必须解压后运行，否则自带的 mksquashfs 只支持 zstd 压缩
+# Must extract before running, otherwise bundled mksquashfs only supports zstd
 if [ ! -f appimagetool ]; then
     wget -q "https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-x86_64.AppImage" -O appimagetool
     chmod +x appimagetool
 fi
+./appimagetool --appimage-extract > /dev/null 2>&1
 
-# 使用系统 mksquashfs 替代 appimagetool 自带版本（自带版本只支持 zstd）
-# 并使用 gzip 压缩以保证最大兼容性
-# Use system mksquashfs instead of bundled one (bundled only supports zstd)
-# and force gzip compression for maximum compatibility across distributions
-export MKSQUASHFS=mksquashfs
-ARCH=x86_64 ./appimagetool --comp gzip "${APP_DIR}" "${PACKAGE_NAME}-${VERSION}-x86_64.AppImage"
+# 使用系统 mksquashfs（支持 gzip/xz/zstd）+ gzip 压缩以保证最大兼容性
+# Use system mksquashfs (supports gzip/xz/zstd) + gzip for max compatibility
+export MKSQUASHFS=/usr/bin/mksquashfs
+ARCH=x86_64 ./squashfs-root/AppRun --comp gzip "${APP_DIR}" "${PACKAGE_NAME}-${VERSION}-x86_64.AppImage"
+rm -rf squashfs-root
 
 echo "AppImage built: ${PACKAGE_NAME}-${VERSION}-x86_64.AppImage"
 rm -rf "${APP_DIR}"
