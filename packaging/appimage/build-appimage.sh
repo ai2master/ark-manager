@@ -48,20 +48,33 @@ cp resources/arkmanager.desktop "${APP_DIR}/usr/share/applications/"
 cp resources/arkmanager.svg "${APP_DIR}/arkmanager.svg"
 cp resources/arkmanager.svg "${APP_DIR}/usr/share/icons/hicolor/scalable/apps/"
 
-# 下载并解压 appimagetool | Download and extract appimagetool
-# 必须解压后运行，否则自带的 mksquashfs 只支持 zstd 压缩
-# Must extract before running, otherwise bundled mksquashfs only supports zstd
-if [ ! -f appimagetool ]; then
-    wget -q "https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-x86_64.AppImage" -O appimagetool
-    chmod +x appimagetool
-fi
-./appimagetool --appimage-extract > /dev/null 2>&1
+# 手动构建 AppImage：绕过 appimagetool 自带的只支持 zstd 的 mksquashfs
+# AppImage = type2-runtime + gzip-compressed squashfs
+# Manual AppImage build: bypass appimagetool's bundled zstd-only mksquashfs
+APPIMAGE_FILE="${PACKAGE_NAME}-${VERSION}-x86_64.AppImage"
+RUNTIME_URL="https://github.com/AppImage/type2-runtime/releases/download/continuous/runtime-x86_64"
 
-# 使用系统 mksquashfs（支持 gzip/xz/zstd）+ gzip 压缩以保证最大兼容性
-# Use system mksquashfs (supports gzip/xz/zstd) + gzip for max compatibility
-export MKSQUASHFS=/usr/bin/mksquashfs
-ARCH=x86_64 ./squashfs-root/AppRun --comp gzip "${APP_DIR}" "${PACKAGE_NAME}-${VERSION}-x86_64.AppImage"
-rm -rf squashfs-root
+# 下载 type2 runtime | Download type2 runtime
+echo "Downloading AppImage runtime..."
+wget -q "${RUNTIME_URL}" -O runtime-x86_64
+chmod +x runtime-x86_64
 
-echo "AppImage built: ${PACKAGE_NAME}-${VERSION}-x86_64.AppImage"
+# 使用系统 mksquashfs 创建 gzip 压缩的 squashfs 镜像
+# Use system mksquashfs to create gzip-compressed squashfs image
+echo "Creating squashfs with gzip compression..."
+mksquashfs "${APP_DIR}" squashfs.img \
+    -root-owned -noappend \
+    -comp gzip \
+    -b 131072 \
+    -no-xattrs
+
+# 拼接 runtime + squashfs = AppImage | Concatenate runtime + squashfs = AppImage
+echo "Assembling AppImage..."
+cat runtime-x86_64 squashfs.img > "${APPIMAGE_FILE}"
+chmod +x "${APPIMAGE_FILE}"
+
+# 清理临时文件 | Clean up temp files
+rm -f runtime-x86_64 squashfs.img
+
+echo "AppImage built: ${APPIMAGE_FILE}"
 rm -rf "${APP_DIR}"
