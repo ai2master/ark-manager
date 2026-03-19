@@ -54,8 +54,11 @@ if [ ! -f appimagetool ]; then
     chmod +x appimagetool
 fi
 
-# 使用 gzip 压缩以保证最大兼容性（默认 zstd 在旧系统不支持）
-# Build AppImage with gzip compression for maximum compatibility (zstd unsupported on older systems)
+# 使用系统 mksquashfs 替代 appimagetool 自带版本（自带版本只支持 zstd）
+# 并使用 gzip 压缩以保证最大兼容性
+# Use system mksquashfs instead of bundled one (bundled only supports zstd)
+# and force gzip compression for maximum compatibility across distributions
+export MKSQUASHFS=mksquashfs
 ARCH=x86_64 ./appimagetool --comp gzip "${APP_DIR}" "${PACKAGE_NAME}-${VERSION}-x86_64.AppImage"
 
 echo "AppImage built: ${PACKAGE_NAME}-${VERSION}-x86_64.AppImage"

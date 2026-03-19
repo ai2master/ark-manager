@@ -90,7 +90,7 @@ jobs:
       - name: Install system deps
         run: |
           sudo apt-get update
-          sudo apt-get install -y p7zip-full libgl1-mesa-dri libegl1 libfuse2 file
+          sudo apt-get install -y p7zip-full libgl1-mesa-dri libegl1 libfuse2 file squashfs-tools
 
       - name: Build AppImage
         run: |
