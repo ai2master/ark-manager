@@ -1,4 +1,14 @@
-"""Tests for encoding_utils module."""
+"""encoding_utils模块的单元测试 | Unit tests for encoding_utils module.
+
+测试覆盖 | Test coverage:
+- 编码检测（chardet集成） | Encoding detection (chardet integration)
+- 文件名编码修复（CP437/GBK转换） | Filename encoding fix (CP437/GBK conversion)
+- ZIP伪加密检测（LFH/CDH标志比对） | ZIP pseudo-encryption detection (LFH/CDH flag comparison)
+- ZIP伪加密修复（二进制标志位修改） | ZIP pseudo-encryption patching (binary flag modification)
+
+部分测试依赖chardet库，如果未安装会跳过。
+Some tests depend on chardet library, will skip if not installed.
+"""
 
 import os
 import struct
@@ -14,6 +24,9 @@ from arkmanager.encoding_utils import (
     patch_pseudo_encryption,
     HAS_CHARDET,
 )
+
+
+# ==================== 测试类 | Test Classes ====================
 
 
 class TestTryDecode:
@@ -73,12 +86,40 @@ class TestDetectEncoding:
 
 
 class TestPseudoEncryption:
+    """ZIP伪加密检测和修复的测试 | Tests for ZIP pseudo-encryption detection and patching.
+
+    这些测试通过手工构造最小化的ZIP文件来精确控制加密标志，
+    验证检测算法的准确性。
+
+    These tests construct minimal ZIP files manually to precisely control
+    encryption flags and verify detection algorithm accuracy.
+    """
+
     def _make_minimal_zip(self, lfh_encrypted=False, cdh_encrypted=False):
-        """Create a minimal ZIP file with controlled encryption flags."""
-        # Minimal ZIP with one STORED file
+        """创建带有可控加密标志的最小ZIP文件 | Create a minimal ZIP file with controlled encryption flags.
+
+        手工构造ZIP文件结构：
+        1. 本地文件头（LFH） + 文件名 + 数据
+        2. 中央目录头（CDH） + 文件名
+        3. 中央目录结束标记（EOCD）
+
+        Manually constructs ZIP file structure:
+        1. Local File Header (LFH) + filename + data
+        2. Central Directory Header (CDH) + filename
+        3. End of Central Directory (EOCD)
+
+        Args:
+            lfh_encrypted: LFH中是否设置加密标志 | Whether to set encryption flag in LFH
+            cdh_encrypted: CDH中是否设置加密标志 | Whether to set encryption flag in CDH
+
+        Returns:
+            完整的ZIP文件字节序列 | Complete ZIP file byte sequence
+        """
+        # 最小ZIP包含一个未压缩（STORED）的文件 | Minimal ZIP with one STORED file
         filename = b"test.txt"
         data = b"Hello World"
 
+        # 根据参数设置加密标志 | Set encryption flags based on parameters
         lfh_flags = 0x01 if lfh_encrypted else 0x00
         cdh_flags = 0x01 if cdh_encrypted else 0x00
 

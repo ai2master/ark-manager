@@ -1,29 +1,75 @@
+# ==============================================================================
+# ArkManager Flatpak 清单文件 | ArkManager Flatpak Manifest
+# ==============================================================================
+#
+# Flatpak 是一种 Linux 沙箱化应用分发格式，应用运行在隔离的沙箱环境中。
+# 此清单定义了应用的运行时环境、沙箱权限和所有依赖模块的构建步骤。
+#
+# Flatpak is a sandboxed application distribution format for Linux.
+# This manifest defines the runtime environment, sandbox permissions,
+# and build steps for all dependency modules.
+#
+# 构建命令 | Build command:
+#   flatpak-builder --force-clean --repo=repo build-dir \
+#       packaging/flatpak/io.github.arkmanager.ArkManager.yml
+#   flatpak build-bundle repo ArkManager.flatpak io.github.arkmanager.ArkManager
+#
+# 注意 | Note:
+#   PyQt6 在 Flatpak 沙箱中需要从源码编译，过程复杂且容易失败。
+#   此构建在 CI 中标记为 continue-on-error: true。
+#   PyQt6 requires source compilation inside Flatpak sandbox, which is complex
+#   and error-prone. This build is marked continue-on-error: true in CI.
+# ==============================================================================
+
+# -------------------- 应用基本信息 | Application Info --------------------
+# app-id: 反向域名格式的唯一标识符 | Reverse-DNS unique identifier
 app-id: io.github.arkmanager.ArkManager
+
+# -------------------- 运行时环境 | Runtime Environment --------------------
+# 使用 KDE Platform 运行时（包含 Qt6 库），避免自行打包 Qt
+# Uses KDE Platform runtime (includes Qt6 libraries) to avoid packaging Qt ourselves
 runtime: org.kde.Platform
 runtime-version: '6.7'
+# SDK 包含编译工具链，构建时使用 | SDK includes build toolchain, used during build
 sdk: org.kde.Sdk
+
+# 应用启动命令 | Application launch command
 command: arkmanager
+
+# -------------------- 沙箱权限 | Sandbox Permissions --------------------
+# Flatpak 默认完全隔离，需要显式声明所需权限
+# Flatpak is fully isolated by default; required permissions must be explicitly declared
 finish-args:
-  - --share=ipc
-  - --socket=fallback-x11
-  - --socket=wayland
-  - --filesystem=home
-  - --filesystem=/tmp
-  - --filesystem=/media
-  - --filesystem=/mnt
-  - --talk-name=org.freedesktop.FileManager1
+  - --share=ipc                          # X11 共享内存通信（Qt 必需）| X11 shared memory (required by Qt)
+  - --socket=fallback-x11               # X11 显示（Wayland 不可用时回退）| X11 display fallback
+  - --socket=wayland                     # Wayland 显示协议 | Wayland display protocol
+  - --filesystem=home                    # 访问用户主目录（读写压缩包）| Access home dir (read/write archives)
+  - --filesystem=/tmp                    # 访问临时目录 | Access temp directory
+  - --filesystem=/media                  # 访问可移动媒体（U盘等）| Access removable media (USB drives, etc.)
+  - --filesystem=/mnt                    # 访问挂载点 | Access mount points
+  - --talk-name=org.freedesktop.FileManager1  # 与文件管理器通信 | Communicate with file manager
+
+# ==================== 依赖模块 | Dependency Modules ====================
+# 每个 module 定义一个依赖的构建步骤，按依赖顺序排列
+# Each module defines build steps for one dependency, ordered by dependency chain
 
 modules:
+  # -------------------- p7zip: 7z 命令行后端 | 7z CLI Backend --------------------
+  # 从源码编译 p7zip，提供 7z 命令用于所有压缩包操作
+  # Build p7zip from source to provide the 7z command for all archive operations
   - name: p7zip
     buildsystem: simple
     build-commands:
-      - make 7z
+      - make 7z                          # 编译 7z 可执行文件 | Compile 7z executable
       - make install DEST_DIR=/app DEST_BIN=/app/bin DEST_SHARE=/app/lib/p7zip DEST_MAN=/app/share/man
     sources:
       - type: archive
         url: https://github.com/p7zip-project/p7zip/archive/refs/tags/v17.05.tar.gz
         sha256: d2788f892571058c08d27095c22154579dfefb807ebe357d145ab2ddddefb1a6
 
+  # -------------------- chardet: 字符编码检测库 | Encoding Detection Library --------------------
+  # 用于自动识别压缩包文件名的字符编码（GBK/GB18030/Big5 等）
+  # Used to auto-detect character encoding of archive filenames (GBK/GB18030/Big5, etc.)
   - name: python3-chardet
     buildsystem: simple
     build-commands:
@@ -33,6 +79,9 @@ modules:
         url: https://files.pythonhosted.org/packages/f3/0d/f7b6ab21ec75897ed80c17d79b15951a719226b9fababf1e40ea74d69079/chardet-5.2.0.tar.gz
         sha256: 1b3b6ff479a8c414bc3fa2c0852995695c4a026dcd6d0633b2dd092ca39c1cf7
 
+  # -------------------- PyQt6-sip: SIP 绑定层 | SIP Binding Layer --------------------
+  # PyQt6 的底层 C++ ↔ Python 绑定生成器，PyQt6 的必需依赖
+  # Low-level C++ ↔ Python binding generator, required dependency of PyQt6
   - name: python3-PyQt6-sip
     buildsystem: simple
     build-commands:
@@ -42,21 +91,37 @@ modules:
         url: https://files.pythonhosted.org/packages/3a/24/2b64fdd1042bbc498f13a8a3125d3beeca1f69e9e66543077a95202f21be/PyQt6_sip-13.8.1.tar.gz
         sha256: e0aef84480de79818d46c632da5b59510252e38d74e48e8b4c32e2b20e20e135
 
+  # -------------------- PyQt6: Qt6 Python 绑定 | Qt6 Python Bindings --------------------
+  # GUI 框架的核心库，需要使用 sip-install 从源码编译
+  # Core GUI framework library, must be compiled from source using sip-install
   - name: python3-PyQt6
     buildsystem: simple
     build-commands:
+      # sip-install 从 C++ 源码编译 PyQt6 的 Python 绑定
+      # sip-install compiles PyQt6 Python bindings from C++ source
+      # --no-tools: 不安装 Qt 设计器等工具 | Don't install Qt Designer tools
+      # --confirm-license: 自动确认 GPL 许可 | Auto-confirm GPL license
       - sip-install --target-dir /app/lib/python3.11/site-packages --no-tools --confirm-license
     sources:
       - type: archive
         url: https://files.pythonhosted.org/packages/ce/c6/99127e39e62f0c887a39d9644012867874a68983bd0fe641f00aa796de88/PyQt6-6.7.0.tar.gz
         sha256: 3d31b2c59dc378ee26e16586d9469842483588142fc377280aad4a7d2fe37f75
 
+  # -------------------- ArkManager: 主应用 | Main Application --------------------
+  # 安装 ArkManager 应用本身及其桌面集成文件
+  # Install ArkManager application itself and its desktop integration files
   - name: arkmanager
     buildsystem: simple
     build-commands:
+      # 用 pip 安装应用 | Install app with pip
       - pip3 install --no-deps --no-build-isolation --prefix=/app .
+      # 安装 .desktop 文件（使用 Flatpak 标准的反向域名命名）
+      # Install .desktop file (using Flatpak-standard reverse-DNS naming)
       - install -Dm644 resources/arkmanager.desktop /app/share/applications/io.github.arkmanager.ArkManager.desktop
+      # 安装 SVG 应用图标 | Install SVG application icon
       - install -Dm644 resources/arkmanager.svg /app/share/icons/hicolor/scalable/apps/io.github.arkmanager.ArkManager.svg
     sources:
+      # type: dir 表示使用本地目录作为源码（相对于此清单文件的路径）
+      # type: dir means use local directory as source (relative to this manifest file)
       - type: dir
         path: ../..

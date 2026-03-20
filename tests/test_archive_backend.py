@@ -1,4 +1,15 @@
-"""Tests for archive_backend module."""
+"""archive_backend模块的单元测试 | Unit tests for archive_backend module.
+
+测试覆盖 | Test coverage:
+- ArchiveBackend类的初始化和7z验证 | ArchiveBackend class initialization and 7z verification
+- 压缩包列表、提取、压缩、测试等核心功能 | Core functions: list, extract, compress, test archives
+- 编码处理模式（auto/force/none） | Encoding modes (auto/force/none)
+- 错误处理（文件不存在、密码错误等） | Error handling (file not found, wrong password, etc.)
+- 数据类（ArchiveEntry、ArchiveInfo）的行为 | Data class (ArchiveEntry, ArchiveInfo) behavior
+
+使用pytest框架，fixture提供测试数据和环境清理。
+Uses pytest framework, fixtures provide test data and environment cleanup.
+"""
 
 import os
 import subprocess
@@ -8,8 +19,14 @@ import pytest
 from arkmanager.archive_backend import ArchiveBackend, ArchiveInfo, ArchiveEntry
 
 
+# ==================== 测试辅助函数 | Test Helper Functions ====================
+
 def has_7z():
-    """Check if 7z is available."""
+    """检查7z是否可用 | Check if 7z is available.
+
+    测试跳过条件：如果系统未安装7z，相关测试将被跳过。
+    Test skip condition: if 7z not installed, related tests will be skipped.
+    """
     try:
         subprocess.run(["7z"], capture_output=True, timeout=5)
         return True
@@ -17,16 +34,38 @@ def has_7z():
         return False
 
 
+# ==================== 测试类 | Test Classes ====================
+
 @pytest.mark.skipif(not has_7z(), reason="7z not available")
 class TestArchiveBackend:
+    """ArchiveBackend类的测试套件 | Test suite for ArchiveBackend class.
+
+    所有测试都依赖7z命令，如果系统未安装会跳过。
+    All tests depend on 7z command, will skip if not installed on system.
+    """
+
     @pytest.fixture
     def backend(self):
+        """创建ArchiveBackend实例 | Create ArchiveBackend instance.
+
+        Pytest fixture，每个测试方法都会获得一个新的实例。
+        Pytest fixture, each test method gets a new instance.
+        """
         return ArchiveBackend()
 
     @pytest.fixture
     def sample_zip(self, tmp_path):
-        """Create a sample ZIP file for testing."""
-        # Create test files
+        """创建测试用的示例ZIP文件 | Create a sample ZIP file for testing.
+
+        生成包含两个文本文件的ZIP压缩包：
+        - test.txt: 根目录下的简单文本文件
+        - subdir/data.txt: 子目录中的文本文件
+
+        Generates a ZIP archive containing two text files:
+        - test.txt: simple text file in root
+        - subdir/data.txt: text file in subdirectory
+        """
+        # 创建测试文件 | Create test files
         test_file = tmp_path / "test.txt"
         test_file.write_text("Hello, World!")
 
@@ -34,7 +73,7 @@ class TestArchiveBackend:
         test_file2.parent.mkdir()
         test_file2.write_text("Test data content")
 
-        # Create ZIP
+        # 使用7z创建ZIP | Create ZIP using 7z
         zip_path = tmp_path / "test.zip"
         subprocess.run(
             ["7z", "a", str(zip_path), str(test_file), str(test_file2)],

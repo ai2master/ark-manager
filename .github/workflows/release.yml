@@ -1,51 +1,105 @@
-name: Build & Release
+# ==============================================================================
+# ArkManager 构建与发布工作流 | ArkManager Build & Release Workflow
+# ==============================================================================
+#
+# 功能说明 | Description:
+#   在推送版本标签或手动触发时，自动构建 4 种 Linux 安装包并创建 GitHub Release。
+#   使用并行构建策略同时生成 DEB、RPM、AppImage 和 Flatpak 包，大幅缩短发布时间。
+#
+#   Automatically builds 4 Linux package formats and creates a GitHub Release
+#   when a version tag is pushed or workflow is manually triggered. Uses parallel
+#   build strategy to generate DEB, RPM, AppImage, and Flatpak simultaneously.
+#
+# 构建矩阵 | Build Matrix:
+#   1. DEB    - Debian/Ubuntu 系列发行版 | Debian/Ubuntu family distributions
+#   2. RPM    - Fedora/CentOS/openSUSE 系列 | Fedora/CentOS/openSUSE family
+#   3. AppImage - 通用 Linux 便携格式（免安装）| Universal portable Linux format
+#   4. Flatpak  - 沙箱化应用格式 | Sandboxed application format
+#
+# 触发方式 | Trigger Methods:
+#   a) 推送版本标签：git tag v1.0.1 && git push origin v1.0.1
+#      Push version tag: git tag v1.0.1 && git push origin v1.0.1
+#   b) 手动触发：GitHub Actions 页面 → Run workflow → 输入版本号
+#      Manual trigger: GitHub Actions page → Run workflow → Enter version
+#
+# 发布流程 | Release Flow:
+#   build-deb ──┐
+#   build-rpm ──┤
+#   build-appimage ─┼─→ release（下载所有构件 → 创建 GitHub Release）
+#   build-flatpak ──┘    (download all artifacts → create GitHub Release)
+# ==============================================================================
 
+name: Build & Release  # 工作流名称，显示在 GitHub Actions 页面 | Workflow name in GitHub Actions
+
+# ==================== 触发条件 | Trigger Conditions ====================
 on:
   push:
     tags:
-      - 'v*'
+      - 'v*'  # 推送以 "v" 开头的标签时触发（如 v1.0.0） | Trigger on tags starting with "v" (e.g., v1.0.0)
   workflow_dispatch:
+    # 手动触发支持，允许在 GitHub Actions 页面直接运行 | Manual trigger support via GitHub Actions page
     inputs:
       version:
-        description: 'Version number (e.g., 1.0.0)'
+        description: 'Version number (e.g., 1.0.0)'  # 版本号输入框 | Version input field
         required: true
         default: '1.0.0'
 
+# ==================== 全局环境变量 | Global Environment Variables ====================
+# VERSION 统一从标签名或手动输入中获取，所有 job 共享
+# VERSION is unified from tag name or manual input, shared across all jobs
 env:
   VERSION: ${{ github.event.inputs.version || github.ref_name }}
 
+# ==================== 构建任务定义 | Build Job Definitions ====================
 jobs:
-  # ==================== DEB Package ====================
+  # ==================== DEB 包构建 | DEB Package Build ====================
+  # 生成 Debian/Ubuntu 系列使用的 .deb 安装包
+  # Generates .deb package for Debian/Ubuntu family distributions
   build-deb:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-22.04  # 使用 Ubuntu 22.04 运行器 | Use Ubuntu 22.04 runner
     steps:
+      # --- 检出代码 | Checkout code ---
       - uses: actions/checkout@v4
 
+      # --- 提取版本号 | Extract version number ---
+      # 去除版本号前缀 "v"（如 v1.0.0 → 1.0.0）
+      # Remove "v" prefix from version (e.g., v1.0.0 → 1.0.0)
       - name: Set version
         run: |
           VERSION="${{ env.VERSION }}"
           VERSION="${VERSION#v}"
           echo "PKG_VERSION=${VERSION}" >> $GITHUB_ENV
 
+      # --- 安装构建依赖 | Install build dependencies ---
+      # dpkg-dev 提供 dpkg-deb 命令用于构建 DEB 包
+      # dpkg-dev provides dpkg-deb command for building DEB packages
       - name: Install dependencies
         run: sudo apt-get update && sudo apt-get install -y dpkg-dev
 
+      # --- 执行 DEB 构建脚本 | Execute DEB build script ---
       - name: Build DEB package
         run: |
           chmod +x packaging/deb/build-deb.sh
           bash packaging/deb/build-deb.sh "${PKG_VERSION}"
 
+      # --- 上传构件 | Upload artifact ---
+      # 将生成的 .deb 文件作为 GitHub Actions 构件保存，供后续 release job 使用
+      # Save generated .deb as GitHub Actions artifact for later use by release job
       - name: Upload DEB artifact
         uses: actions/upload-artifact@v4
         with:
           name: deb-package
           path: "*.deb"
 
-  # ==================== RPM Package ====================
+  # ==================== RPM 包构建 | RPM Package Build ====================
+  # 生成 Fedora/CentOS/openSUSE 系列使用的 .rpm 安装包
+  # 需要在 Fedora 容器中运行，因为 rpmbuild 工具链来自 Red Hat 系
+  # Generates .rpm package for Fedora/CentOS/openSUSE family distributions
+  # Must run in Fedora container since rpmbuild toolchain is from Red Hat family
   build-rpm:
     runs-on: ubuntu-22.04
     container:
-      image: fedora:39
+      image: fedora:39  # 使用 Fedora 39 Docker 镜像 | Use Fedora 39 Docker image
     steps:
       - uses: actions/checkout@v4
 
@@ -55,6 +109,10 @@ jobs:
           VERSION="${VERSION#v}"
           echo "PKG_VERSION=${VERSION}" >> $GITHUB_ENV
 
+      # --- 安装 RPM 构建工具链 | Install RPM build toolchain ---
+      # rpm-build: rpmbuild 命令 | rpmbuild command
+      # rpmdevtools: RPM 开发辅助工具 | RPM development helper tools
+      # python3-*: Python 打包所需工具 | Python packaging tools
       - name: Install build dependencies
         run: |
           dnf install -y rpm-build python3-devel python3-setuptools python3-pip python3-wheel rpmdevtools
@@ -64,13 +122,19 @@ jobs:
           chmod +x packaging/rpm/build-rpm.sh
           bash packaging/rpm/build-rpm.sh "${PKG_VERSION}"
 
+      # --- 上传构件 | Upload artifact ---
+      # RPM 生成在 ~/rpmbuild/RPMS/ 目录下 | RPM is generated in ~/rpmbuild/RPMS/
       - name: Find and upload RPM
         uses: actions/upload-artifact@v4
         with:
           name: rpm-package
           path: ~/rpmbuild/RPMS/**/*.rpm
 
-  # ==================== AppImage ====================
+  # ==================== AppImage 构建 | AppImage Build ====================
+  # 生成通用 Linux 便携格式的 AppImage 文件（免安装，下载即用）
+  # AppImage 是一个包含应用及其所有依赖的单文件可执行程序
+  # Generates universal portable AppImage file (no install, download and run)
+  # AppImage is a single executable containing the app and all its dependencies
   build-appimage:
     runs-on: ubuntu-22.04
     steps:
@@ -82,11 +146,20 @@ jobs:
           VERSION="${VERSION#v}"
           echo "PKG_VERSION=${VERSION}" >> $GITHUB_ENV
 
+      # --- 配置 Python 环境 | Set up Python environment ---
+      # AppImage 中嵌入 Python 3.11 及应用代码
+      # Python 3.11 and app code are embedded in the AppImage
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
 
+      # --- 安装系统依赖 | Install system dependencies ---
+      # p7zip-full: 7z 命令（嵌入 AppImage）| 7z command (embedded in AppImage)
+      # libgl1-mesa-dri, libegl1: OpenGL 库（PyQt6 需要）| OpenGL for PyQt6
+      # libfuse2: FUSE 库（AppImage 运行时需要）| FUSE for AppImage runtime
+      # file: file 命令（用于验证生成的文件类型）| file command for type verification
+      # squashfs-tools: mksquashfs 命令（手动构建 squashfs 镜像）| mksquashfs for manual squashfs build
       - name: Install system deps
         run: |
           sudo apt-get update
@@ -103,10 +176,17 @@ jobs:
           name: appimage-package
           path: "*.AppImage"
 
-  # ==================== Flatpak ====================
+  # ==================== Flatpak 构建 | Flatpak Build ====================
+  # 生成沙箱化的 Flatpak 应用包（隔离运行，安全性高）
+  # 注意：PyQt6 在 Flatpak 沙箱中需要从源码编译，过程复杂且容易失败
+  # 因此标记为 continue-on-error: true，即使构建失败也不会阻塞发布流程
+  #
+  # Generates sandboxed Flatpak application package (isolated, high security)
+  # Note: PyQt6 requires source compilation inside Flatpak sandbox, which is complex
+  # and error-prone. Marked continue-on-error: true so build failure won't block release.
   build-flatpak:
     runs-on: ubuntu-22.04
-    continue-on-error: true
+    continue-on-error: true  # 允许失败而不阻塞后续步骤 | Allow failure without blocking subsequent steps
     steps:
       - uses: actions/checkout@v4
 
@@ -116,6 +196,10 @@ jobs:
           VERSION="${VERSION#v}"
           echo "PKG_VERSION=${VERSION}" >> $GITHUB_ENV
 
+      # --- 安装 Flatpak 构建工具链 | Install Flatpak build toolchain ---
+      # flatpak: 运行时引擎 | Runtime engine
+      # flatpak-builder: 从清单文件构建 Flatpak 应用 | Build Flatpak apps from manifest
+      # KDE Platform 6.7: 提供 Qt6 运行时（避免自行打包 Qt）| Provides Qt6 runtime
       - name: Install Flatpak and flatpak-builder
         run: |
           sudo apt-get update
@@ -123,6 +207,9 @@ jobs:
           sudo flatpak remote-add --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
           sudo flatpak install -y flathub org.kde.Platform//6.7 org.kde.Sdk//6.7
 
+      # --- 执行 Flatpak 构建 | Execute Flatpak build ---
+      # flatpak-builder: 根据清单文件构建应用到 build-dir/ | Build app to build-dir/ from manifest
+      # flatpak build-bundle: 将构建结果打包为可分发的 .flatpak 文件 | Package build into distributable .flatpak
       - name: Build Flatpak bundle
         run: |
           flatpak-builder --force-clean --repo=repo build-dir packaging/flatpak/io.github.arkmanager.ArkManager.yml
@@ -134,16 +221,29 @@ jobs:
           name: flatpak-package
           path: "*.flatpak"
 
-  # ==================== Create Release ====================
+  # ==================== 创建 GitHub Release | Create GitHub Release ====================
+  # 所有构建任务完成后，下载所有构件并创建正式 Release
+  # After all build jobs complete, download all artifacts and create official Release
   release:
+    # 依赖所有 4 个构建任务 | Depends on all 4 build jobs
     needs: [build-deb, build-rpm, build-appimage, build-flatpak]
     runs-on: ubuntu-latest
+
+    # always(): 即使某个构建失败也继续（Flatpak 可能失败）
+    # startsWith(): 仅在标签推送时创建 Release（手动触发不创建）
+    # always(): continue even if a build fails (Flatpak may fail)
+    # startsWith(): only create Release on tag push (not on manual trigger)
     if: always() && startsWith(github.ref, 'refs/tags/')
+
+    # 需要写入权限以创建 Release | Need write permission to create Release
     permissions:
       contents: write
     steps:
       - uses: actions/checkout@v4
 
+      # --- 下载所有构件 | Download all artifacts ---
+      # 将所有构建任务上传的构件下载到 artifacts/ 目录
+      # Download all artifacts from build jobs into artifacts/ directory
       - name: Download all artifacts
         uses: actions/download-artifact@v4
         with:
@@ -155,6 +255,9 @@ jobs:
           VERSION="${VERSION#v}"
           echo "PKG_VERSION=${VERSION}" >> $GITHUB_ENV
 
+      # --- 生成发布说明 | Generate release notes ---
+      # 使用 heredoc 生成 Markdown 格式的发布说明，包含功能列表、下载说明和安装命令
+      # Generate Markdown release notes with feature list, download info, and install commands
       - name: Generate release notes
         id: release_notes
         run: |
@@ -201,6 +304,11 @@ jobs:
           ```
           EOF
 
+      # --- 创建 GitHub Release | Create GitHub Release ---
+      # 使用 softprops/action-gh-release 上传所有构件并创建正式发布
+      # files 使用通配符匹配 artifacts/ 下所有包文件
+      # Uses softprops/action-gh-release to upload all artifacts and create official release
+      # files uses glob patterns to match all package files under artifacts/
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
@@ -210,5 +318,5 @@ jobs:
             artifacts/**/*.rpm
             artifacts/**/*.AppImage
             artifacts/**/*.flatpak
-          draft: false
-          prerelease: false
+          draft: false       # 直接发布，非草稿 | Publish directly, not draft
+          prerelease: false   # 正式版本，非预发布 | Official release, not pre-release

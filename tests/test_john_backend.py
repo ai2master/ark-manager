@@ -1,8 +1,21 @@
-"""Tests for john_backend module."""
+"""john_backend模块的单元测试 | Unit tests for john_backend module.
+
+测试覆盖 | Test coverage:
+- JohnBackend类的初始化 | JohnBackend class initialization
+- 哈希提取器映射表 | Hash extractor mappings
+- 攻击模式枚举 | Attack mode enumerations
+- 不支持格式的错误处理 | Error handling for unsupported formats
+
+注意：这些测试不依赖实际的JTR安装，只测试接口和数据结构。
+Note: These tests don't depend on actual JTR installation, only test interfaces and data structures.
+"""
 
 import pytest
 
 from arkmanager.john_backend import JohnBackend, AttackMode, JohnResult
+
+
+# ==================== 测试类 | Test Classes ====================
 
 
 class TestJohnResult:
