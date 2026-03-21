@@ -53,42 +53,40 @@ env:
 # ==================== 构建任务定义 | Build Job Definitions ====================
 jobs:
   # ==================== DEB 包构建 | DEB Package Build ====================
-  # 生成 Debian/Ubuntu 系列使用的 .deb 安装包
-  # Generates .deb package for Debian/Ubuntu family distributions
+  # 分别为 Ubuntu 22.04 (jammy) 和 24.04 (noble) 构建 .deb 安装包
+  # Build .deb packages separately for Ubuntu 22.04 (jammy) and 24.04 (noble)
+  # jammy: 内嵌 PyQt6（pip），因系统源无此包 | Bundles PyQt6 from pip
+  # noble: 依赖系统 python3-pyqt6 包 | Depends on system python3-pyqt6
   build-deb:
-    runs-on: ubuntu-22.04  # 使用 Ubuntu 22.04 运行器 | Use Ubuntu 22.04 runner
+    strategy:
+      matrix:
+        include:
+          - distro: jammy
+            runner: ubuntu-22.04
+          - distro: noble
+            runner: ubuntu-24.04
+    runs-on: ${{ matrix.runner }}
     steps:
-      # --- 检出代码 | Checkout code ---
       - uses: actions/checkout@v4
 
-      # --- 提取版本号 | Extract version number ---
-      # 去除版本号前缀 "v"（如 v1.0.0 → 1.0.0）
-      # Remove "v" prefix from version (e.g., v1.0.0 → 1.0.0)
       - name: Set version
         run: |
           VERSION="${{ env.VERSION }}"
           VERSION="${VERSION#v}"
           echo "PKG_VERSION=${VERSION}" >> $GITHUB_ENV
 
-      # --- 安装构建依赖 | Install build dependencies ---
-      # dpkg-dev 提供 dpkg-deb 命令用于构建 DEB 包
-      # dpkg-dev provides dpkg-deb command for building DEB packages
       - name: Install dependencies
         run: sudo apt-get update && sudo apt-get install -y dpkg-dev
 
-      # --- 执行 DEB 构建脚本 | Execute DEB build script ---
       - name: Build DEB package
         run: |
           chmod +x packaging/deb/build-deb.sh
-          bash packaging/deb/build-deb.sh "${PKG_VERSION}"
+          bash packaging/deb/build-deb.sh "${PKG_VERSION}" "${{ matrix.distro }}"
 
-      # --- 上传构件 | Upload artifact ---
-      # 将生成的 .deb 文件作为 GitHub Actions 构件保存，供后续 release job 使用
-      # Save generated .deb as GitHub Actions artifact for later use by release job
       - name: Upload DEB artifact
         uses: actions/upload-artifact@v4
         with:
-          name: deb-package
+          name: deb-package-${{ matrix.distro }}
           path: "*.deb"
 
   # ==================== RPM 包构建 | RPM Package Build ====================
@@ -276,7 +274,8 @@ jobs:
           ### Downloads
           | Package | Platform |
           |---------|----------|
-          | `.deb` | Ubuntu, Debian, Linux Mint |
+          | `.deb` (~jammy) | Ubuntu 22.04, Linux Mint 21 |
+          | `.deb` (~noble) | Ubuntu 24.04, Linux Mint 22 |
           | `.rpm` | Fedora, CentOS, openSUSE |
           | `.AppImage` | Any Linux (portable) |
           | `.flatpak` | Any Linux (sandboxed) |

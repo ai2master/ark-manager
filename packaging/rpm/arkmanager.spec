@@ -49,6 +49,10 @@ install -Dm644 resources/arkmanager.svg %{buildroot}%{_datadir}/icons/hicolor/sc
 %{_datadir}/icons/hicolor/scalable/apps/arkmanager.svg
 
 %changelog
+* Sat Mar 21 2026 ArkManager Contributors <arkmanager@users.noreply.github.com> - 1.1.2-1
+- Split DEB packaging for Ubuntu 22.04 (jammy) and 24.04 (noble)
+- Fix PyQt6 AA_UseHighDpiPixmaps compatibility for Qt6.5+
+
 * Sat Mar 21 2026 ArkManager Contributors <arkmanager@users.noreply.github.com> - 1.1.0-1
 - Add comprehensive GUI test suite (77 tests with xvfb CI)
 - Add bilingual code comments (Chinese/English)

@@ -43,7 +43,7 @@ def main():
     # Set application metadata for settings storage etc.
     app.setApplicationName("ArkManager")
     app.setOrganizationName("ArkManager")
-    app.setApplicationVersion("1.1.1")
+    app.setApplicationVersion("1.1.2")
 
     # 启用高DPI图像支持（Qt6.5+已默认启用，仅旧版本需要）
     # Enable high DPI pixmap support (default in Qt6.5+, only needed for older)
