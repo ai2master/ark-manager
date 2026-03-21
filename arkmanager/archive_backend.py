@@ -169,8 +169,11 @@ class ArchiveBackend:
             # 命令存在但超时，视为可用 | Command exists but timed out, consider available
             pass
 
-    def _run_7z(self, args: List[str], password: Optional[str] = None,
-                encoding: str = "utf-8", timeout: int = 300) -> subprocess.CompletedProcess:
+    def _run_7z(
+        self, args: List[str], password: Optional[str] = None,
+        encoding: str = "utf-8", timeout: int = 300,
+        log_callback: Optional[Callable[[str], None]] = None
+    ) -> subprocess.CompletedProcess:
         """使用给定参数运行7z | Run 7z with given arguments.
 
         所有7z命令的统一执行入口，负责构建命令行、处理密码、设置环境变量、
@@ -185,6 +188,8 @@ class ArchiveBackend:
             password: 可选密码，将添加-p参数 | Optional password, will add -p flag
             encoding: 保留参数，暂未使用 | Reserved parameter, currently unused
             timeout: 超时时间（秒），默认300秒 | Timeout in seconds, default 300s
+            log_callback: 可选日志回调函数，用于记录命令和输出
+                         | Optional log callback function for command and output logging
 
         Returns:
             subprocess.CompletedProcess: 命令执行结果 | Command execution result
@@ -204,6 +209,12 @@ class ArchiveBackend:
             # stdin or env var for passwords by design.
             cmd.append(f"-p{password}")
 
+        # 记录命令执行（隐藏密码） | Log command execution (hide password)
+        if log_callback:
+            # 构建显示用的命令（隐藏密码） | Build display command (hide password)
+            display_cmd = [self.seven_zip_path] + args
+            log_callback(f"$ {' '.join(display_cmd)}")
+
         # 复制当前环境变量 | Copy current environment variables
         env = os.environ.copy()
         # 强制7z输出使用UTF-8区域设置，避免中文乱码
@@ -219,6 +230,17 @@ class ArchiveBackend:
                 timeout=timeout,
                 env=env,
             )
+
+            # 记录输出 | Log output
+            if log_callback:
+                stdout_text = result.stdout.decode("utf-8", errors="replace")
+                if stdout_text.strip():
+                    log_callback(stdout_text)
+                if result.returncode != 0:
+                    stderr_text = result.stderr.decode("utf-8", errors="replace")
+                    if stderr_text.strip():
+                        log_callback(f"STDERR: {stderr_text}")
+
             return result
         except subprocess.TimeoutExpired:
             raise RuntimeError(f"7z command timed out after {timeout}s")
@@ -227,7 +249,8 @@ class ArchiveBackend:
 
     def list_archive(self, filepath: str, password: Optional[str] = None,
                      encoding_mode: str = "auto",
-                     forced_encoding: str = "gbk") -> ArchiveInfo:
+                     forced_encoding: str = "gbk",
+                     log_callback: Optional[Callable[[str], None]] = None) -> ArchiveInfo:
         """列出归档文件内容并支持编码处理 | List contents of an archive with encoding support.
 
         使用7z的-slt（技术列表）选项获取压缩包详细信息，包括每个文件的大小、
@@ -256,7 +279,7 @@ class ArchiveBackend:
         # 构建7z列表命令：l=列表，-slt=技术详细模式
         # Build 7z list command: l=list, -slt=technical detail mode
         args = ["l", "-slt", filepath]
-        result = self._run_7z(args, password=password)
+        result = self._run_7z(args, password=password, log_callback=log_callback)
 
         stdout = result.stdout
         # 尝试按优先级解码输出：UTF-8 > GBK > UTF-8容错
@@ -472,7 +495,8 @@ class ArchiveBackend:
                 encoding_mode: str = "auto",
                 forced_encoding: str = "gbk",
                 overwrite: bool = True,
-                progress_callback: Optional[Callable[[str, int], None]] = None) -> tuple:
+                progress_callback: Optional[Callable[[str, int], None]] = None,
+                log_callback: Optional[Callable[[str], None]] = None) -> tuple:
         """提取归档文件到输出目录 | Extract archive to output_dir.
 
         使用7z的x命令提取压缩包内容。支持部分提取（指定文件列表）、
@@ -525,7 +549,7 @@ class ArchiveBackend:
             args.extend(entries)
 
         # 执行提取命令，超时设置为1小时 | Execute extract command with 1-hour timeout
-        result = self._run_7z(args, password=password, timeout=3600)
+        result = self._run_7z(args, password=password, timeout=3600, log_callback=log_callback)
 
         # 尝试解码输出 | Try to decode output
         try:
@@ -610,7 +634,8 @@ class ArchiveBackend:
                  volumes: str = "",
                  encoding_mode: str = "auto",
                  forced_encoding: str = "gbk",
-                 progress_callback: Optional[Callable[[str, int], None]] = None) -> tuple:
+                 progress_callback: Optional[Callable[[str, int], None]] = None,
+                 log_callback: Optional[Callable[[str], None]] = None) -> tuple:
         """创建新的归档文件 | Create a new archive.
 
         使用7z的a命令创建压缩包。支持多种格式、压缩级别、加密选项、固实压缩、
@@ -688,7 +713,7 @@ class ArchiveBackend:
         args.extend(input_paths)
 
         # 执行压缩命令，超时设置为1小时 | Execute compression command with 1-hour timeout
-        result = self._run_7z(args, password=password, timeout=3600)
+        result = self._run_7z(args, password=password, timeout=3600, log_callback=log_callback)
 
         # 尝试解码输出 | Try to decode output
         try:
@@ -703,7 +728,8 @@ class ArchiveBackend:
             stderr = result.stderr.decode("utf-8", errors="replace")
             return False, stderr or output
 
-    def test_archive(self, filepath: str, password: Optional[str] = None) -> tuple:
+    def test_archive(self, filepath: str, password: Optional[str] = None,
+                     log_callback: Optional[Callable[[str], None]] = None) -> tuple:
         """测试归档文件完整性 | Test archive integrity.
 
         使用7z的t命令验证压缩包是否损坏。会解压所有数据到内存进行CRC校验，
@@ -724,7 +750,7 @@ class ArchiveBackend:
         # 构建7z测试命令 | Build 7z test command
         # t: 测试压缩包完整性 | t: test archive integrity
         args = ["t", filepath]
-        result = self._run_7z(args, password=password)
+        result = self._run_7z(args, password=password, log_callback=log_callback)
 
         # 尝试解码输出 | Try to decode output
         try:
@@ -738,6 +764,84 @@ class ArchiveBackend:
         else:
             stderr = result.stderr.decode("utf-8", errors="replace")
             return False, stderr or output
+
+    def smart_extract(self, filepath: str, output_dir: str,
+                      password: Optional[str] = None,
+                      encoding_mode: str = "auto",
+                      forced_encoding: str = "gbk",
+                      overwrite: bool = True,
+                      log_callback: Optional[Callable[[str], None]] = None,
+                      progress_callback: Optional[Callable[[str, int], None]] = None) -> tuple:
+        """智能解压：根据压缩包结构自动决定是否创建父目录
+        | Smart extraction: auto-decide parent dir based on archive structure.
+
+        检测压缩包根目录结构。如果只有一个顶级目录，直接解压不创建额外文件夹。
+        如果有多个顶级条目，创建以压缩包命名的父文件夹。
+
+        Detects archive root structure. If only one top-level directory exists,
+        extracts directly without creating extra folder. If multiple top-level
+        entries exist, creates parent folder named after archive.
+
+        Args:
+            filepath: 压缩包文件路径 | Archive file path
+            output_dir: 目标目录 | Destination directory
+            password: 可选密码 | Optional password
+            encoding_mode: 编码处理模式："auto"、"force"或"none"
+                          | Encoding mode: "auto", "force", or "none"
+            forced_encoding: mode为"force"时的编码 | Encoding when mode is "force"
+            overwrite: 是否覆盖现有文件 | Whether to overwrite existing files
+            log_callback: 可选日志回调函数 | Optional log callback function
+            progress_callback: 进度回调函数 | Progress callback function
+
+        Returns:
+            (成功: bool, 消息: str) | (success: bool, message: str)
+        """
+        # 先列出内容分析结构 | List contents to analyze structure
+        info = self.list_archive(filepath, password=password,
+                                 encoding_mode=encoding_mode,
+                                 forced_encoding=forced_encoding,
+                                 log_callback=log_callback)
+        if info.error:
+            return False, info.error
+
+        # 分析顶级条目 | Analyze top-level entries
+        top_level = set()
+        for entry in info.entries:
+            # 统一路径分隔符为正斜杠 | Normalize path separator to forward slash
+            parts = entry.filename.replace("\\", "/").split("/")
+            if parts and parts[0]:
+                top_level.add(parts[0])
+
+        # 判断是否需要创建父目录 | Determine if parent dir needed
+        # 多个顶级条目需要父目录，单个顶级目录不需要
+        # Multiple top-level entries need parent dir, single top-level dir doesn't
+        create_parent = len(top_level) != 1
+
+        if log_callback:
+            if create_parent:
+                msg = (
+                    f"检测到 {len(top_level)} 个顶级条目，将创建父目录 | "
+                    f"Detected {len(top_level)} top-level entries, will create parent dir"
+                )
+                log_callback(msg)
+            else:
+                top_dir = list(top_level)[0]
+                msg = (
+                    f"检测到单个顶级目录 '{top_dir}'，直接解压 | "
+                    f"Detected single top-level dir '{top_dir}', extract directly"
+                )
+                log_callback(msg)
+
+        return self.extract(
+            filepath, output_dir,
+            password=password,
+            create_parent_dir=create_parent,
+            encoding_mode=encoding_mode,
+            forced_encoding=forced_encoding,
+            overwrite=overwrite,
+            log_callback=log_callback,
+            progress_callback=progress_callback,
+        )
 
     # ==================== 静态辅助方法 | Static Helper Methods ====================
 
