@@ -10,7 +10,7 @@ detection/removal, John the Ripper integration for password recovery, 20+ format
 """
 
 # 版本号采用语义化版本控制 | Version follows semantic versioning
-__version__ = "1.1.0"
+__version__ = "1.1.1"
 
 # 应用程序显示名称 | Application display name
 __app_name__ = "ArkManager"

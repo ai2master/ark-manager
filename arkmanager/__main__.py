@@ -43,11 +43,12 @@ def main():
     # Set application metadata for settings storage etc.
     app.setApplicationName("ArkManager")
     app.setOrganizationName("ArkManager")
-    app.setApplicationVersion("1.1.0")
+    app.setApplicationVersion("1.1.1")
 
-    # 启用高DPI图像支持，改善高分辨率显示器上的显示效果
-    # Enable high DPI pixmap support for better rendering on high-resolution displays
-    app.setAttribute(Qt.ApplicationAttribute.AA_UseHighDpiPixmaps, True)
+    # 启用高DPI图像支持（Qt6.5+已默认启用，仅旧版本需要）
+    # Enable high DPI pixmap support (default in Qt6.5+, only needed for older)
+    if hasattr(Qt.ApplicationAttribute, "AA_UseHighDpiPixmaps"):
+        app.setAttribute(Qt.ApplicationAttribute.AA_UseHighDpiPixmaps, True)
 
     # ==================== 应用全局样式表 | Apply Global Stylesheet ====================
     # 使用Material Design风格的配色方案，提供现代化的用户界面
