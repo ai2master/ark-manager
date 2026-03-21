@@ -43,7 +43,7 @@ def main():
     # Set application metadata for settings storage etc.
     app.setApplicationName("ArkManager")
     app.setOrganizationName("ArkManager")
-    app.setApplicationVersion("1.0.0")
+    app.setApplicationVersion("1.1.0")
 
     # 启用高DPI图像支持，改善高分辨率显示器上的显示效果
     # Enable high DPI pixmap support for better rendering on high-resolution displays
