@@ -21,7 +21,6 @@ from .encoding_utils import (
     fix_zip_filename,
 )
 
-
 # ==================== 数据类定义 | Data Class Definitions ====================
 
 
@@ -42,7 +41,8 @@ class ArchiveEntry:
         size: 原始文件大小（字节） | Uncompressed size in bytes
         compressed_size: 压缩后大小（字节） | Compressed size in bytes
         modified: 修改时间戳字符串 | Modification timestamp string
-        attributes: 文件属性字符串（如"D"表示目录） | File attributes string (e.g., "D" for directory)
+        attributes: 文件属性字符串（如"D"表示目录）
+                   | File attributes string (e.g., "D" for directory)
         crc: CRC32校验值（十六进制） | CRC32 checksum (hexadecimal)
         encrypted: 是否加密 | Whether the entry is encrypted
         method: 压缩方法（如"LZMA"、"Deflate"） | Compression method (e.g., "LZMA", "Deflate")
@@ -199,13 +199,15 @@ class ArchiveBackend:
         if password is not None:
             # 已知安全限制: 密码通过命令行传递，进程运行期间可通过 /proc/PID/cmdline 查看
             # 7z CLI 不支持 stdin 或环境变量传递密码，这是 7z 的设计限制
-            # Known security limitation: password passed via CLI, visible in /proc/PID/cmdline
-            # during process execution. 7z CLI does not support stdin or env var for passwords by design.
+            # Known security limitation: password passed via CLI, visible in
+            # /proc/PID/cmdline during process execution. 7z CLI does not support
+            # stdin or env var for passwords by design.
             cmd.append(f"-p{password}")
 
         # 复制当前环境变量 | Copy current environment variables
         env = os.environ.copy()
-        # 强制7z输出使用UTF-8区域设置，避免中文乱码 | Force UTF-8 locale for 7z output to avoid Chinese garbled text
+        # 强制7z输出使用UTF-8区域设置，避免中文乱码
+        # Force UTF-8 locale for 7z output to avoid Chinese garbled text
         env["LANG"] = "en_US.UTF-8"
         env["LC_ALL"] = "en_US.UTF-8"
 
@@ -240,21 +242,25 @@ class ArchiveBackend:
         Args:
             filepath: 归档文件路径 | Path to the archive file
             password: 加密归档文件的可选密码 | Optional password for encrypted archives
-            encoding_mode: 编码处理模式："auto"（自动检测）、"force"（强制指定）或"none"（不处理）
-                          | Encoding handling mode: "auto" (detect), "force" (specify), or "none" (skip)
-            forced_encoding: mode为"force"时使用的编码（如"gbk"） | Encoding when mode is "force" (e.g., "gbk")
+            encoding_mode: 编码处理模式："auto"（自动检测）、"force"（强制指定）
+                          或"none"（不处理） | Encoding handling mode: "auto"
+                          (detect), "force" (specify), or "none" (skip)
+            forced_encoding: mode为"force"时使用的编码（如"gbk"）
+                            | Encoding when mode is "force" (e.g., "gbk")
 
         Returns:
             ArchiveInfo: 包含压缩包元数据和文件列表 | Archive metadata and file list
         """
         info = ArchiveInfo(path=filepath)
 
-        # 构建7z列表命令：l=列表，-slt=技术详细模式 | Build 7z list command: l=list, -slt=technical detail mode
+        # 构建7z列表命令：l=列表，-slt=技术详细模式
+        # Build 7z list command: l=list, -slt=technical detail mode
         args = ["l", "-slt", filepath]
         result = self._run_7z(args, password=password)
 
         stdout = result.stdout
-        # 尝试按优先级解码输出：UTF-8 > GBK > UTF-8容错 | Try decoding output by priority: UTF-8 > GBK > UTF-8 fallback
+        # 尝试按优先级解码输出：UTF-8 > GBK > UTF-8容错
+        # Try decoding output by priority: UTF-8 > GBK > UTF-8 fallback
         try:
             output = stdout.decode("utf-8")
         except UnicodeDecodeError:
@@ -313,7 +319,8 @@ class ArchiveBackend:
         for line in output.split("\n"):
             line = line.strip()
 
-            # ==================== 解析归档级属性 | Parse Archive-Level Properties ====================
+            # ==================== 解析归档级属性
+            # Parse Archive-Level Properties ====================
             # 这些属性描述整个压缩包 | These properties describe the entire archive
             if line.startswith("Type = "):
                 info.type = line[7:]
@@ -341,8 +348,10 @@ class ArchiveBackend:
             elif line.startswith("Encrypted = +"):
                 info.encrypted = True
 
-            # ==================== 解析条目级属性 | Parse Entry-Level Properties ====================
-            # 这些属性描述压缩包内的单个文件或目录 | These properties describe individual files or directories
+            # ==================== 解析条目级属性
+            # Parse Entry-Level Properties ====================
+            # 这些属性描述压缩包内的单个文件或目录
+            # These properties describe individual files or directories
             elif line.startswith("Path = "):
                 # 新条目开始，保存上一个条目 | New entry starts, save previous entry
                 if current_entry:
@@ -376,7 +385,8 @@ class ArchiveBackend:
                 elif line.startswith("CRC = "):
                     current_entry.crc = line[6:]
                 elif line.startswith("Encrypted = "):
-                    # "+"表示加密，"-"表示未加密 | "+" means encrypted, "-" means not encrypted
+                    # "+"表示加密，"-"表示未加密
+                    # "+" means encrypted, "-" means not encrypted
                     current_entry.encrypted = line[12:] == "+"
                 elif line.startswith("Method = "):
                     current_entry.method = line[9:]
@@ -410,7 +420,8 @@ class ArchiveBackend:
         if encoding_mode == "none":
             return filename
         elif encoding_mode == "force":
-            # 强制模式：假设原始为CP437，转换为指定编码 | Force mode: assume CP437, convert to specified encoding
+            # 强制模式：假设原始为CP437，转换为指定编码
+            # Force mode: assume CP437, convert to specified encoding
             return fix_zip_filename(filename, "cp437", forced_encoding)
         else:  # auto
             # 自动模式：使用chardet检测编码 | Auto mode: use chardet to detect encoding
@@ -437,14 +448,17 @@ class ArchiveBackend:
             with zipfile.ZipFile(filepath, "r") as zf:
                 if zf.comment:
                     # 按优先级尝试多种编码 | Try multiple encodings by priority
-                    # UTF-8（国际标准） -> GBK（中文简体） -> GB18030（中文完整） -> Latin-1（容错）
-                    # UTF-8 (international) -> GBK (Simplified Chinese) -> GB18030 (Chinese full) -> Latin-1 (fallback)
+                    # UTF-8（国际标准） -> GBK（中文简体） -> GB18030（中文完整）
+                    # -> Latin-1（容错）
+                    # UTF-8 (international) -> GBK (Simplified Chinese) ->
+                    # GB18030 (Chinese full) -> Latin-1 (fallback)
                     for enc in ("utf-8", "gbk", "gb18030", "latin-1"):
                         try:
                             return zf.comment.decode(enc)
                         except (UnicodeDecodeError, LookupError):
                             continue
-                    # 所有编码都失败，使用UTF-8容错模式 | All encodings failed, use UTF-8 with error handling
+                    # 所有编码都失败，使用UTF-8容错模式
+                    # All encodings failed, use UTF-8 with error handling
                     return zf.comment.decode("utf-8", errors="replace")
         except Exception:
             # 文件损坏或不是有效ZIP | File corrupted or not a valid ZIP
@@ -472,9 +486,12 @@ class ArchiveBackend:
             filepath: 归档文件路径 | Archive path
             output_dir: 目标目录 | Destination directory
             password: 可选密码 | Optional password
-            entries: 要提取的特定条目列表（相对路径） | Optional list of entries to extract (relative paths)
-            create_parent_dir: 是否创建以压缩包命名的父文件夹 | Whether to create parent folder named after archive
-            encoding_mode: 编码处理模式："auto"、"force"或"none" | Encoding mode: "auto", "force", or "none"
+            entries: 要提取的特定条目列表（相对路径）
+                    | Optional list of entries to extract (relative paths)
+            create_parent_dir: 是否创建以压缩包命名的父文件夹
+                              | Whether to create parent folder named after archive
+            encoding_mode: 编码处理模式："auto"、"force"或"none"
+                          | Encoding mode: "auto", "force", or "none"
             forced_encoding: mode为"force"时的编码 | Encoding when mode is "force"
             overwrite: 是否覆盖现有文件 | Whether to overwrite existing files
             progress_callback: 进度回调函数(文件名, 百分比) | Progress callback(filename, percent)
@@ -518,9 +535,11 @@ class ArchiveBackend:
 
         # 检查提取是否成功 | Check if extraction succeeded
         if result.returncode == 0:
-            # 如果需要编码修复，重命名提取的文件 | If encoding fix needed, rename extracted files
+            # 如果需要编码修复，重命名提取的文件
+            # If encoding fix needed, rename extracted files
             # 7z提取时会保留原始文件名，需要后处理修复乱码
-            # 7z preserves original filenames during extraction, need post-processing to fix garbled names
+            # 7z preserves original filenames during extraction, need
+            # post-processing to fix garbled names
             if encoding_mode != "none":
                 self._fix_extracted_filenames(
                     output_dir, encoding_mode, forced_encoding
@@ -548,13 +567,17 @@ class ArchiveBackend:
 
         Security:
             防止路径遍历攻击：验证修复后的路径仍在目标目录内
-            Prevents path traversal attacks: validates fixed paths stay within target directory
+            Prevents path traversal attacks: validates fixed paths stay within
+            target directory
         """
-        # 获取目标目录的真实路径用于路径遍历校验 | Get real path for traversal validation
-        # realpath()解析符号链接，避免绕过安全检查 | realpath() resolves symlinks to avoid bypassing security checks
+        # 获取目标目录的真实路径用于路径遍历校验
+        # Get real path for traversal validation
+        # realpath()解析符号链接，避免绕过安全检查
+        # realpath() resolves symlinks to avoid bypassing security checks
         real_dir = os.path.realpath(directory)
 
-        # topdown=False: 自底向上遍历，先处理文件再处理目录 | topdown=False: traverse bottom-up, process files before directories
+        # topdown=False: 自底向上遍历，先处理文件再处理目录
+        # topdown=False: traverse bottom-up, process files before directories
         for root, dirs, files in os.walk(directory, topdown=False):
             # 处理所有文件和目录 | Process all files and directories
             for name in files + dirs:
@@ -573,7 +596,8 @@ class ArchiveBackend:
                         try:
                             os.rename(old_path, new_path)
                         except OSError:
-                            # 重命名失败（如跨文件系统），忽略 | Rename failed (e.g., cross-filesystem), ignore
+                            # 重命名失败（如跨文件系统），忽略
+                            # Rename failed (e.g., cross-filesystem), ignore
                             pass
 
     def compress(self, output_path: str, input_paths: List[str],
@@ -600,10 +624,12 @@ class ArchiveBackend:
             output_path: 输出压缩包路径 | Output archive path
             input_paths: 要压缩的文件/目录路径列表 | List of file/directory paths to compress
             format: 压缩格式（如"7z"、"zip"、"tar"） | Archive format (e.g., "7z", "zip", "tar")
-            compression_level: 压缩级别0-9，0=不压缩，9=最大压缩 | Compression level 0-9, 0=store, 9=ultra
+            compression_level: 压缩级别0-9，0=不压缩，9=最大压缩
+                              | Compression level 0-9, 0=store, 9=ultra
             password: 可选密码保护 | Optional password protection
             encrypt_filenames: 是否加密文件名（仅7z支持） | Whether to encrypt filenames (7z only)
-            solid: 是否启用固实压缩（7z特性，提高压缩率） | Whether to enable solid compression (7z feature, improves ratio)
+            solid: 是否启用固实压缩（7z特性，提高压缩率）
+                  | Whether to enable solid compression (7z feature, improves ratio)
             method: 压缩方法（如"LZMA2"、"Deflate"） | Compression method (e.g., "LZMA2", "Deflate")
             volumes: 分卷大小（如"100m"、"4g"） | Volume size (e.g., "100m", "4g")
             encoding_mode: 编码处理模式（仅ZIP） | Encoding mode (ZIP only)
@@ -630,7 +656,8 @@ class ArchiveBackend:
 
         # 固实模式(仅7z格式支持) | Solid mode (7z format only)
         # 固实压缩将所有文件视为一个数据流，压缩率更高但不能单独提取
-        # Solid compression treats all files as one data stream, better ratio but can't extract individually
+        # Solid compression treats all files as one data stream, better ratio
+        # but can't extract individually
         if format == "7z":
             args.append(f"-ms={'on' if solid else 'off'}")
 
@@ -688,7 +715,8 @@ class ArchiveBackend:
 
         Args:
             filepath: 压缩包文件路径 | Archive file path
-            password: 可选密码（加密压缩包需要） | Optional password (required for encrypted archives)
+            password: 可选密码（加密压缩包需要）
+                     | Optional password (required for encrypted archives)
 
         Returns:
             (成功: bool, 消息: str) | (success: bool, message: str)

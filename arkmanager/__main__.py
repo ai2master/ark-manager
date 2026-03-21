@@ -11,7 +11,6 @@ opening archive files via command-line arguments.
 import os
 import sys
 
-
 # ==================== 应用程序入口函数 | Application Entry Point ====================
 
 def main():
@@ -40,12 +39,14 @@ def main():
     # 创建Qt应用程序实例 | Create Qt application instance
     app = QApplication(sys.argv)
 
-    # 设置应用程序元数据，用于配置文件存储等功能 | Set application metadata for settings storage etc.
+    # 设置应用程序元数据，用于配置文件存储等功能
+    # Set application metadata for settings storage etc.
     app.setApplicationName("ArkManager")
     app.setOrganizationName("ArkManager")
     app.setApplicationVersion("1.0.0")
 
-    # 启用高DPI图像支持，改善高分辨率显示器上的显示效果 | Enable high DPI pixmap support for better rendering on high-resolution displays
+    # 启用高DPI图像支持，改善高分辨率显示器上的显示效果
+    # Enable high DPI pixmap support for better rendering on high-resolution displays
     app.setAttribute(Qt.ApplicationAttribute.AA_UseHighDpiPixmaps, True)
 
     # ==================== 应用全局样式表 | Apply Global Stylesheet ====================

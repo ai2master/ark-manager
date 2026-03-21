@@ -22,17 +22,20 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Callable, List, Optional
 
-
 # ==================== 枚举和数据类 | Enums and Data Classes ====================
 
 class AttackMode(Enum):
     """攻击模式枚举 | Attack mode enumeration.
 
     四种主要攻击模式 | Four main attack modes:
-    - WORDLIST: 字典攻击，使用预定义密码列表 | Dictionary attack with predefined password list
-    - INCREMENTAL: 增量暴力破解，尝试所有可能组合 | Incremental brute-force trying all combinations
-    - SINGLE: 单字模式，基于用户名等信息生成变体 | Single mode, generates variants based on username etc.
-    - MASK: 掩码攻击，按规则生成密码（如"?u?l?l?d"） | Mask attack, generates passwords by rules (e.g., "?u?l?l?d")
+    - WORDLIST: 字典攻击，使用预定义密码列表
+      Dictionary attack with predefined password list
+    - INCREMENTAL: 增量暴力破解，尝试所有可能组合
+      Incremental brute-force trying all combinations
+    - SINGLE: 单字模式，基于用户名等信息生成变体
+      Single mode, generates variants based on username etc.
+    - MASK: 掩码攻击，按规则生成密码（如"?u?l?l?d"）
+      Mask attack, generates passwords by rules (e.g., "?u?l?l?d")
     """
     WORDLIST = "wordlist"
     INCREMENTAL = "incremental"
@@ -137,7 +140,7 @@ class JohnBackend:
         # 检查常见位置 | Check common locations
         search_paths = [
             "john",                                      # PATH中的命令 | Command in PATH
-            "/usr/bin/john",                            # Debian/Ubuntu系统安装 | System installation
+            "/usr/bin/john",                            # Debian/Ubuntu系统安装
             "/usr/sbin/john",                           # 某些发行版放在sbin | Some distros use sbin
             "/usr/local/bin/john",                      # 手动安装 | Manual installation
             "/opt/john/run/john",                       # 源码编译 | Source compiled
@@ -314,10 +317,13 @@ class JohnBackend:
 
         Args:
             hash_file: 哈希文件路径 | Hash file path
-            attack_mode: 攻击模式（字典/增量/单字/掩码） | Attack mode (wordlist/incremental/single/mask)
+            attack_mode: 攻击模式（字典/增量/单字/掩码）
+                Attack mode (wordlist/incremental/single/mask)
             wordlist: 字典文件路径（字典模式） | Wordlist file path (wordlist mode)
-            mask: 掩码规则（掩码模式，如"?u?l?l?d?d"） | Mask rule (mask mode, e.g., "?u?l?l?d?d")
-            charset: 字符集（增量模式，如"alpha"、"digits"） | Charset (incremental mode, e.g., "alpha", "digits")
+            mask: 掩码规则（掩码模式，如"?u?l?l?d?d"）
+                Mask rule (mask mode, e.g., "?u?l?l?d?d")
+            charset: 字符集（增量模式，如"alpha"、"digits"）
+                Charset (incremental mode, e.g., "alpha", "digits")
             min_length: 最小密码长度 | Minimum password length
             max_length: 最大密码长度 | Maximum password length
             format_hint: 哈希格式提示（如"zip"） | Hash format hint (e.g., "zip")

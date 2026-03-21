@@ -14,13 +14,10 @@ Uses pytest-qt, running in headless mode (QT_QPA_PLATFORM=offscreen).
 """
 
 import os
-import subprocess
 
 import pytest
-from PyQt6.QtWidgets import QApplication
 
-from tests.conftest import has_7z, skip_no_7z
-
+from tests.conftest import skip_no_7z
 
 # ==================== MainWindow 基础测试 | MainWindow Basic Tests ====================
 
@@ -137,6 +134,7 @@ class TestArchiveLoading:
     def test_load_nonexistent(self, qapp, monkeypatch):
         """加载不存在文件不崩溃 | Loading nonexistent file doesn't crash."""
         from PyQt6.QtWidgets import QMessageBox
+
         from arkmanager.main_window import MainWindow
         # Mock QMessageBox 避免模态对话框阻塞 | Mock to avoid modal blocking
         monkeypatch.setattr(QMessageBox, "warning", lambda *a, **k: QMessageBox.StandardButton.Ok)

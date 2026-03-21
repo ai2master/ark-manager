@@ -13,18 +13,18 @@ Some tests depend on chardet library, will skip if not installed.
 import os
 import struct
 import tempfile
+
 import pytest
 
 from arkmanager.encoding_utils import (
-    detect_encoding,
-    try_decode,
-    fix_zip_filename,
-    auto_detect_zip_filename,
-    detect_zip_pseudo_encryption,
-    patch_pseudo_encryption,
     HAS_CHARDET,
+    auto_detect_zip_filename,
+    detect_encoding,
+    detect_zip_pseudo_encryption,
+    fix_zip_filename,
+    patch_pseudo_encryption,
+    try_decode,
 )
-
 
 # ==================== 测试类 | Test Classes ====================
 

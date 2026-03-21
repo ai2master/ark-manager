@@ -10,10 +10,8 @@
 Note: These tests don't depend on actual JTR installation, only test interfaces and data structures.
 """
 
-import pytest
 
-from arkmanager.john_backend import JohnBackend, AttackMode, JohnResult
-
+from arkmanager.john_backend import AttackMode, JohnBackend, JohnResult
 
 # ==================== 测试类 | Test Classes ====================
 

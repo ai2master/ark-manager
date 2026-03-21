@@ -37,7 +37,8 @@ except ImportError:
 CJK_ENCODINGS = [
     ("gbk", "GBK (Simplified Chinese)"),          # 中国大陆最常用 | Most common in mainland China
     ("gb2312", "GB2312 (Simplified Chinese)"),    # GBK的子集 | Subset of GBK
-    ("gb18030", "GB18030 (Chinese Universal)"),   # 中文国标完整版 | Complete Chinese national standard
+    ("gb18030", "GB18030 (Chinese Universal)"),
+    # 中文国标完整版 | Complete Chinese national standard
     ("big5", "Big5 (Traditional Chinese)"),       # 台湾、香港常用 | Common in Taiwan, Hong Kong
     ("shift_jis", "Shift-JIS (Japanese)"),        # 日本常用 | Common in Japan
     ("euc-jp", "EUC-JP (Japanese)"),              # 日本Unix系统 | Japanese Unix systems
@@ -49,7 +50,8 @@ CJK_ENCODINGS = [
     ("latin-1", "ISO-8859-1 (Latin-1)"),          # 西欧标准 | Western European standard
 ]
 
-# ZIP通用标志位：第11位表示文件名使用UTF-8编码 | ZIP general purpose flag: bit 11 indicates UTF-8 filename
+# ZIP通用标志位：第11位表示文件名使用UTF-8编码
+# ZIP general purpose flag: bit 11 indicates UTF-8 filename
 ZIP_FILENAME_UTF8_FLAG = 0x800
 
 
@@ -122,9 +124,11 @@ def fix_zip_filename(filename: str, source_encoding: str = "cp437",
         修复后的文件名，失败返回原值 | Fixed filename, returns original on failure
     """
     try:
-        # 步骤1：用错误编码重新编码，获取原始字节 | Step 1: re-encode with wrong encoding to get original bytes
+        # 步骤1：用错误编码重新编码，获取原始字节
+        # Step 1: re-encode with wrong encoding to get original bytes
         raw_bytes = filename.encode(source_encoding)
-        # 步骤2：用正确编码解码原始字节 | Step 2: decode original bytes with correct encoding
+        # 步骤2：用正确编码解码原始字节
+        # Step 2: decode original bytes with correct encoding
         return raw_bytes.decode(target_encoding)
     except (UnicodeDecodeError, UnicodeEncodeError, LookupError):
         # 如果失败（如无法编码），返回原文件名 | If failed (e.g., cannot encode), return original
@@ -158,7 +162,8 @@ def auto_detect_zip_filename(filename: str) -> str:
     try:
         raw_bytes = filename.encode("cp437")
     except UnicodeEncodeError:
-        # 无法编码为CP437，说明不是从CP437误解析的，保持原样 | Cannot encode to CP437, not misinterpreted from CP437, keep original
+        # 无法编码为CP437，说明不是从CP437误解析的，保持原样
+        # Cannot encode to CP437, not misinterpreted from CP437, keep original
         return filename
 
     # 步骤2：使用chardet自动检测 | Step 2: use chardet for automatic detection
@@ -179,7 +184,8 @@ def auto_detect_zip_filename(filename: str) -> str:
         if enc in ("utf-8", "cp437", "cp850", "latin-1"):
             continue
         decoded = try_decode(raw_bytes, enc)
-        # 验证解码结果：不包含控制字符（ASCII < 32，除了换行）| Validate result: no control characters (ASCII < 32, except newline)
+        # 验证解码结果：不包含控制字符（ASCII < 32，除了换行）
+        # Validate result: no control characters (ASCII < 32, except newline)
         if decoded and not any(ord(c) < 32 for c in decoded if c != '\n'):
             return decoded
 
@@ -203,7 +209,8 @@ def detect_zip_pseudo_encryption(filepath: str) -> dict:
 
     检测方法 | Detection methods:
     1. LFH和CDH加密标志不一致 | LFH and CDH encryption flags mismatch
-    2. 有加密标志但数据包含明显的文件头签名 | Encryption flag set but data contains obvious file signatures
+    2. 有加密标志但数据包含明显的文件头签名
+       Encryption flag set but data contains obvious file signatures
 
     Args:
         filepath: ZIP文件路径 | ZIP file path
@@ -236,7 +243,8 @@ def detect_zip_pseudo_encryption(filepath: str) -> dict:
         # 使用mmap避免将整个文件加载到Python堆内存，OS自动管理内存页
         # 对于大文件（几GB），mmap只映射虚拟地址，实际访问时才加载页
         # Use mmap instead of f.read() for memory efficiency; OS manages pages
-        # For large files (several GB), mmap only maps virtual addresses, loads pages on actual access
+        # For large files (several GB), mmap only maps virtual addresses,
+        # loads pages on actual access
         data = mmap.mmap(f.fileno(), 0, access=mmap.ACCESS_READ)
     except ValueError:
         # 空文件无法mmap | Empty file cannot be mmapped
@@ -252,7 +260,8 @@ def detect_zip_pseudo_encryption(filepath: str) -> dict:
     # LFH结构（前30字节） | LFH structure (first 30 bytes):
     # +0:  签名(4字节) | Signature (4 bytes)
     # +4:  最低版本(2字节) | Version needed (2 bytes)
-    # +6:  通用标志(2字节) <- 加密标志在bit 0 | General purpose flags (2 bytes) <- encryption flag at bit 0
+    # +6:  通用标志(2字节) <- 加密标志在bit 0
+    #      General purpose flags (2 bytes) <- encryption flag at bit 0
     # +8:  压缩方法(2字节) | Compression method (2 bytes)
     # +10: 修改时间(2字节) | Last mod time (2 bytes)
     # +12: 修改日期(2字节) | Last mod date (2 bytes)
@@ -300,7 +309,8 @@ def detect_zip_pseudo_encryption(filepath: str) -> dict:
     # +0:  签名(4字节) | Signature (4 bytes)
     # +4:  制作版本(2字节) | Version made by (2 bytes)
     # +6:  最低版本(2字节) | Version needed (2 bytes)
-    # +8:  通用标志(2字节) <- 加密标志在bit 0 | General purpose flags (2 bytes) <- encryption flag at bit 0
+    # +8:  通用标志(2字节) <- 加密标志在bit 0
+    #      General purpose flags (2 bytes) <- encryption flag at bit 0
     # +10: 压缩方法(2字节) | Compression method (2 bytes)
     # +12: 修改时间(2字节) | Last mod time (2 bytes)
     # +14: 修改日期(2字节) | Last mod date (2 bytes)
@@ -349,13 +359,15 @@ def detect_zip_pseudo_encryption(filepath: str) -> dict:
         # 移动到下一个可能的签名位置 | Move to next possible signature position
         pos += 46 + fname_len + extra_len + comment_len + 1
 
-    # ==================== 分析加密标志一致性 | Analyze Encryption Flag Consistency ====================
+    # ==================== 分析加密标志一致性 ====================
+    # Analyze Encryption Flag Consistency
     # 统计加密条目数量 | Count encrypted entries
     encrypted_lfh = sum(1 for e in lfh_entries if e["encrypted_flag"])
     encrypted_cdh = sum(1 for e in cdh_entries if e["encrypted_flag"])
 
     # 检测方法1：LFH和CDH加密标志不一致（最常见的伪加密手法）
-    # Detection method 1: LFH and CDH encryption flags mismatch (most common pseudo-encryption technique)
+    # Detection method 1: LFH and CDH encryption flags mismatch
+    # (most common pseudo-encryption technique)
     for i, lfh in enumerate(lfh_entries):
         # 构建条目信息 | Build entry info
         entry_info = {
@@ -372,10 +384,13 @@ def detect_zip_pseudo_encryption(filepath: str) -> dict:
             if lfh["encrypted_flag"] != cdh["encrypted_flag"]:
                 entry_info["is_pseudo"] = True
                 result["is_pseudo_encrypted"] = True
-                result["details"].append(
-                    f"Entry '{entry_info['filename']}': LFH encrypted={lfh['encrypted_flag']}, "
-                    f"CDH encrypted={cdh['encrypted_flag']} - MISMATCH (伪加密特征 | Pseudo-encryption signature)"
+                mismatch_msg = (
+                    f"Entry '{entry_info['filename']}': "
+                    f"LFH encrypted={lfh['encrypted_flag']}, "
+                    f"CDH encrypted={cdh['encrypted_flag']} - MISMATCH "
+                    f"(伪加密特征 | Pseudo-encryption signature)"
                 )
+                result["details"].append(mismatch_msg)
 
         result["entries"].append(entry_info)
 
@@ -443,7 +458,8 @@ def patch_pseudo_encryption(filepath: str, output_path: str) -> bool:
     4. 修复后的文件可以无需密码直接解压 | Patched file can be extracted without password
 
     使用mmap的优势 | Advantages of using mmap:
-    - 避免将整个文件读入Python堆内存（支持大文件）| Avoids loading entire file into Python heap (supports large files)
+    - 避免将整个文件读入Python堆内存（支持大文件）
+      Avoids loading entire file into Python heap (supports large files)
     - OS管理内存页，按需加载 | OS manages memory pages, loads on demand
     - 就地修改，无需重建整个文件 | In-place modification, no need to rebuild entire file
 
@@ -490,7 +506,8 @@ def patch_pseudo_encryption(filepath: str, output_path: str) -> bool:
     patched = 0
 
     # 修补本地文件头条目（标志位于偏移+6） | Patch LFH entries (flag at offset +6)
-    # LFH结构：签名(4) + 版本(2) + 标志(2) <- 偏移6 | LFH structure: sig(4) + ver(2) + flags(2) <- offset 6
+    # LFH结构：签名(4) + 版本(2) + 标志(2) <- 偏移6
+    # LFH structure: sig(4) + ver(2) + flags(2) <- offset 6
     pos = 0
     while True:
         pos = data.find(SIG_LFH, pos)

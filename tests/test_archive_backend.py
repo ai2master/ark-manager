@@ -13,11 +13,10 @@ Uses pytest framework, fixtures provide test data and environment cleanup.
 
 import os
 import subprocess
-import tempfile
+
 import pytest
 
-from arkmanager.archive_backend import ArchiveBackend, ArchiveInfo, ArchiveEntry
-
+from arkmanager.archive_backend import ArchiveBackend, ArchiveEntry, ArchiveInfo
 
 # ==================== 测试辅助函数 | Test Helper Functions ====================
 
