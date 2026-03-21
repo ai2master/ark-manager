@@ -39,13 +39,18 @@ BuildRequires:  python3-wheel
 # -------------------- 运行依赖 | Runtime Dependencies --------------------
 # 安装后运行时需要的包 | Packages required at runtime after installation
 Requires:       python3 >= 3.9
-Requires:       python3-qt6         # PyQt6 GUI 框架 | PyQt6 GUI framework
-Requires:       python3-chardet     # 字符编码自动检测 | Auto encoding detection
-Requires:       p7zip               # 7z 命令行核心 | 7z CLI core
-Requires:       p7zip-plugins       # 7z 额外格式插件（RAR 等）| Extra format plugins (RAR, etc.)
+# PyQt6 GUI 框架 | PyQt6 GUI framework
+Requires:       python3-qt6
+# 字符编码自动检测 | Auto encoding detection
+Requires:       python3-chardet
+# 7z 命令行核心 | 7z CLI core
+Requires:       p7zip
+# 7z 额外格式插件（RAR 等）| Extra format plugins (RAR, etc.)
+Requires:       p7zip-plugins
 # Recommends 是推荐但非必需的依赖，不安装也不影响核心功能
 # Recommends are suggested but optional deps, core features work without them
-Recommends:     john                # John the Ripper 密码恢复工具 | Password recovery tool
+# John the Ripper 密码恢复工具 | Password recovery tool
+Recommends:     john
 
 # -------------------- 详细描述 | Detailed Description --------------------
 %description
@@ -83,17 +88,32 @@ install -Dm644 resources/arkmanager.svg %{buildroot}%{_datadir}/icons/hicolor/sc
 # 列出此 RPM 包安装的所有文件，rpmbuild 据此生成包内容
 # Lists all files installed by this RPM; rpmbuild uses this to generate package contents
 %files
-%license LICENSE                                              # 许可证文件（特殊标记）| License file (special tag)
-%doc README.md                                                # 文档文件 | Documentation file
-%{python3_sitelib}/arkmanager/                                # Python 应用包 | Python app package
-%{python3_sitelib}/arkmanager-*.dist-info/                    # pip 安装元数据 | pip install metadata
-%{_bindir}/arkmanager                                         # CLI 启动脚本 | CLI launcher script
-%{_bindir}/arkmanager-gui                                     # GUI 启动脚本 | GUI launcher script
-%{_datadir}/applications/arkmanager.desktop                   # 桌面集成文件 | Desktop integration file
-%{_datadir}/icons/hicolor/scalable/apps/arkmanager.svg        # 应用图标 | Application icon
+# 许可证文件（特殊标记）| License file (special tag)
+%license LICENSE
+# 文档文件 | Documentation file
+%doc README.md
+# Python 应用包 | Python app package
+%{python3_sitelib}/arkmanager/
+# pip 安装元数据 | pip install metadata
+%{python3_sitelib}/arkmanager-*.dist-info/
+# CLI 启动脚本 | CLI launcher script
+%{_bindir}/arkmanager
+# GUI 启动脚本 | GUI launcher script
+%{_bindir}/arkmanager-gui
+# 桌面集成文件 | Desktop integration file
+%{_datadir}/applications/arkmanager.desktop
+# 应用图标 | Application icon
+%{_datadir}/icons/hicolor/scalable/apps/arkmanager.svg
 
 # ==================== 变更日志 | Changelog ====================
 %changelog
+* Sat Mar 21 2026 ArkManager Contributors <arkmanager@users.noreply.github.com> - 1.1.0-1
+- Add comprehensive GUI test suite (77 tests with xvfb CI)
+- Add bilingual code comments (Chinese/English)
+- Rewrite documentation (usage, architecture, product)
+- Fix all ruff lint errors
+- CI: split lint/test jobs, Python 3.10-3.12 matrix
+
 * Sat Feb 22 2025 ArkManager Contributors <arkmanager@users.noreply.github.com> - 1.0.0-1
 - Initial release
 - Chinese filename encoding support (auto-detect, GBK, GB18030, Big5, Shift-JIS)
