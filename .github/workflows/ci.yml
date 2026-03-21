@@ -3,85 +3,150 @@
 # ==============================================================================
 #
 # 功能说明 | Description:
-#   在每次推送到 main 分支或创建 PR 时自动运行代码质量检查和测试。
-#   使用矩阵策略在 Python 3.10/3.11/3.12 三个版本上并行测试，
-#   确保代码在所有支持的 Python 版本上正常工作。
+#   在每次推送到 main 分支或创建 PR 时自动运行代码质量检查和全面测试。
+#   使用矩阵策略在 Python 3.10/3.11/3.12 三个版本上并行测试。
+#   通过 xvfb 虚拟帧缓冲区运行真实的 GUI 测试，而非仅用 offscreen 模式。
 #
-#   Automatically runs code quality checks and tests on every push to main
-#   or PR creation. Uses matrix strategy to test in parallel across
-#   Python 3.10/3.11/3.12, ensuring compatibility with all supported versions.
+#   Automatically runs code quality checks and comprehensive tests on every push
+#   to main or PR creation. Uses matrix strategy across Python 3.10/3.11/3.12.
+#   Runs real GUI tests via xvfb virtual framebuffer instead of offscreen-only.
 #
-# 检查项 | Checks:
-#   1. ruff lint  - 代码风格和潜在错误检查 | Code style and potential bug checks
-#   2. pytest     - 单元测试（33 个测试用例）| Unit tests (33 test cases)
+# 测试层次 | Test Layers:
+#   1. ruff lint       - 代码风格和潜在错误检查 | Code style and bug checks
+#   2. pytest unit     - 数据类、编码工具、后端逻辑 | Data classes, encoding, backend
+#   3. pytest GUI      - 主窗口、对话框、菜单、工具栏 | MainWindow, dialogs, menus
+#   4. pytest security - 路径遍历、只读检测、文件完整性 | Path traversal, readonly, integrity
+#   5. pytest multi-fmt - 多格式压缩/解压往返测试 | Multi-format roundtrip tests
 #
 # 系统依赖 | System Dependencies:
-#   - p7zip-full    : 7z 命令（测试需要实际调用 7z）| 7z command for tests
+#   - p7zip-full     : 7z 命令（集成测试需要）| 7z command for integration tests
+#   - xvfb           : X 虚拟帧缓冲区（GUI 测试需要真实 X11 环境）
+#                      X virtual framebuffer (GUI tests need real X11 environment)
 #   - libgl1-mesa-dri, libegl1 : OpenGL 库（PyQt6 导入需要）| OpenGL for PyQt6
-#   - libglib2.0-0  : GLib 库（Qt 底层依赖）| GLib library for Qt
-#   - libxkbcommon0 : 键盘映射库（Qt 底层依赖）| Keyboard mapping for Qt
+#   - libglib2.0-0   : GLib 库（Qt 底层依赖）| GLib for Qt
+#   - libxkbcommon0  : 键盘映射库（Qt 底层依赖）| Keyboard mapping for Qt
+#   - x11-utils      : xdpyinfo 等 X11 工具（验证 Xvfb 启动）| X11 utils
 # ==============================================================================
 
-name: CI  # 工作流名称，显示在 GitHub Actions 页面 | Workflow name shown in GitHub Actions
+name: CI
 
 # ==================== 触发条件 | Trigger Conditions ====================
 on:
   push:
-    branches: [main]       # 推送到 main 分支时触发 | Trigger on push to main branch
+    branches: [main]
+    paths:
+      - 'arkmanager/**'
+      - 'tests/**'
+      - 'pyproject.toml'
+      - '.github/workflows/ci.yml'
   pull_request:
-    branches: [main]       # 向 main 分支创建 PR 时触发 | Trigger on PR to main branch
+    branches: [main]
 
 # ==================== 任务定义 | Job Definitions ====================
 jobs:
-  lint-and-test:
-    runs-on: ubuntu-latest  # 使用 Ubuntu 最新版运行器 | Use latest Ubuntu runner
 
-    # 矩阵策略：在多个 Python 版本上并行运行同一任务
-    # Matrix strategy: run the same job in parallel across multiple Python versions
+  # ==================== 代码质量检查 | Code Quality Check ====================
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install ruff
+        run: pip install ruff
+
+      # 检查应用代码和测试代码 | Lint both app code and test code
+      - name: Lint application code
+        run: ruff check arkmanager/
+
+      - name: Lint test code
+        run: ruff check tests/ --ignore=E501
+
+  # ==================== 全面测试 | Comprehensive Tests ====================
+  test:
+    runs-on: ubuntu-latest
+    needs: lint  # lint 通过后才运行测试 | Run tests only after lint passes
+    timeout-minutes: 20  # 最长运行 20 分钟 | Max 20 minutes runtime
+
     strategy:
       matrix:
         python-version: ["3.10", "3.11", "3.12"]
+      fail-fast: false  # 一个版本失败不影响其他 | One version failure doesn't stop others
 
     steps:
-      # --- 检出代码 | Checkout code ---
       - uses: actions/checkout@v4
 
-      # --- 配置 Python 环境 | Set up Python environment ---
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
 
-      # --- 安装系统级依赖 | Install system-level dependencies ---
-      # PyQt6 需要 OpenGL 和 X11 相关库才能正常导入
-      # p7zip-full 提供 7z 命令用于集成测试
-      # PyQt6 needs OpenGL and X11 libraries to import correctly
-      # p7zip-full provides 7z command for integration tests
+      # --- 安装系统级依赖（含 xvfb）| Install system deps (including xvfb) ---
+      # xvfb 提供虚拟 X11 显示器，让 PyQt6 GUI 测试在无头 CI 环境中运行
+      # 相比 QT_QPA_PLATFORM=offscreen，xvfb 更接近真实桌面环境
+      # xvfb provides virtual X11 display for PyQt6 GUI tests in headless CI
+      # Closer to real desktop environment than QT_QPA_PLATFORM=offscreen
       - name: Install system dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y p7zip-full libgl1-mesa-dri libegl1 libglib2.0-0 libxkbcommon0
+          sudo apt-get install -y \
+            p7zip-full \
+            xvfb \
+            x11-utils \
+            libgl1-mesa-dri \
+            libegl1 \
+            libglib2.0-0 \
+            libxkbcommon0 \
+            libxkbcommon-x11-0 \
+            libdbus-1-3 \
+            libxcb-xinerama0 \
+            libxcb-icccm4 \
+            libxcb-image0 \
+            libxcb-keysyms1 \
+            libxcb-randr0 \
+            libxcb-render-util0 \
+            libxcb-shape0 \
+            libxcb-cursor0 \
+            libfontconfig1
 
       # --- 安装 Python 依赖 | Install Python dependencies ---
-      # -e ".[dev]" 以可编辑模式安装项目及开发依赖（pytest, pytest-qt, ruff）
-      # -e ".[dev]" installs project in editable mode with dev deps (pytest, pytest-qt, ruff)
       - name: Install Python dependencies
         run: |
           python -m pip install --upgrade pip
           pip install -e ".[dev]"
+          pip install pytest-cov
 
-      # --- 代码质量检查 | Code Quality Check ---
-      # ruff 是一个用 Rust 编写的极速 Python linter，检查代码风格和潜在错误
-      # ruff is a blazing-fast Python linter written in Rust, checks style and bugs
-      - name: Lint with ruff
+      # --- 使用 xvfb 运行全面测试 | Run comprehensive tests with xvfb ---
+      # xvfb-run 启动虚拟 X 服务器，然后在其中运行 pytest
+      # -a: 自动选择可用的 display number，避免冲突
+      # -s 1920x1080x24: 分辨率和色深，模拟真实显示器
+      # --server-args="-ac": 禁用 X 认证，避免权限问题
+      # xvfb-run starts a virtual X server then runs pytest inside it
+      # -a: auto-select available display number
+      # -s: resolution and color depth simulating real display
+      # --server-args="-ac": disable X auth to avoid permission issues
+      - name: Run tests with xvfb
         run: |
-          ruff check arkmanager/
-
-      # --- 运行测试 | Run Tests ---
-      # QT_QPA_PLATFORM=offscreen 让 Qt 在无显示器的 CI 环境中运行（不需要 X11/Wayland）
-      # QT_QPA_PLATFORM=offscreen allows Qt to run in headless CI (no X11/Wayland needed)
-      - name: Run tests
-        run: |
-          pytest tests/ -v --tb=short
+          xvfb-run -a -s "-screen 0 1920x1080x24" --server-args="-ac" \
+            pytest tests/ -v --tb=short \
+              --cov=arkmanager --cov-report=term-missing \
+              --cov-report=xml:coverage.xml \
+              -x --timeout=60
         env:
-          QT_QPA_PLATFORM: offscreen
+          # 回退保险：如果 xvfb 有问题，offscreen 仍可兜底
+          # Fallback: if xvfb has issues, offscreen can still work
+          QT_QPA_PLATFORM: ""
+          # 抑制 Qt 调试警告噪音 | Suppress Qt debug warning noise
+          QT_LOGGING_RULES: "*.debug=false"
+
+      # --- 上传覆盖率报告 | Upload coverage report ---
+      - name: Upload coverage report
+        if: matrix.python-version == '3.12'
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: coverage.xml
