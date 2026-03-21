@@ -73,6 +73,35 @@ chmod +x "${PKG_DIR}/usr/bin/arkmanager"
 cp resources/arkmanager.desktop "${PKG_DIR}/usr/share/applications/"
 cp resources/arkmanager.svg "${PKG_DIR}/usr/share/icons/hicolor/scalable/apps/"
 
+# 安装后脚本: 更新桌面数据库和 MIME 缓存 | Post-install: update desktop database and MIME cache
+cat > "${PKG_DIR}/DEBIAN/postinst" << 'POSTINST'
+#!/bin/sh
+set -e
+if command -v update-desktop-database >/dev/null 2>&1; then
+    update-desktop-database /usr/share/applications 2>/dev/null || true
+fi
+if command -v update-mime-database >/dev/null 2>&1; then
+    update-mime-database /usr/share/mime 2>/dev/null || true
+fi
+if command -v gtk-update-icon-cache >/dev/null 2>&1; then
+    gtk-update-icon-cache -f /usr/share/icons/hicolor 2>/dev/null || true
+fi
+POSTINST
+chmod +x "${PKG_DIR}/DEBIAN/postinst"
+
+# 卸载后脚本: 清理桌面数据库 | Post-remove: clean up desktop database
+cat > "${PKG_DIR}/DEBIAN/postrm" << 'POSTRM'
+#!/bin/sh
+set -e
+if command -v update-desktop-database >/dev/null 2>&1; then
+    update-desktop-database /usr/share/applications 2>/dev/null || true
+fi
+if command -v update-mime-database >/dev/null 2>&1; then
+    update-mime-database /usr/share/mime 2>/dev/null || true
+fi
+POSTRM
+chmod +x "${PKG_DIR}/DEBIAN/postrm"
+
 # 版权文件 | Copyright file
 cat > "${PKG_DIR}/usr/share/doc/${PACKAGE_NAME}/copyright" << EOF
 Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/

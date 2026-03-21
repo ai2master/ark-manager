@@ -6,11 +6,12 @@ extracting and managing archives.
 """
 
 import os
+import tempfile
 import webbrowser
 from typing import List, Optional
 
-from PyQt6.QtCore import QSettings, QSize, Qt, QThread, QTimer, pyqtSignal
-from PyQt6.QtGui import QAction, QFont, QKeySequence
+from PyQt6.QtCore import QMimeData, QSettings, QSize, Qt, QThread, QTimer, QUrl, pyqtSignal
+from PyQt6.QtGui import QAction, QDrag, QFont, QKeySequence
 from PyQt6.QtWidgets import (
     QApplication,
     QComboBox,
@@ -147,6 +148,65 @@ class HashWorkerThread(QThread):
             self.progress.emit(idx + 1, len(self.files))
 
 
+class DragTreeWidget(QTreeWidget):
+    """支持拖出文件的树控件 | Tree widget with drag-out support."""
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self._main_window = None  # 引用主窗口 | Reference to main window
+
+    def set_main_window(self, window):
+        """设置主窗口引用 | Set main window reference."""
+        self._main_window = window
+
+    def startDrag(self, supported_actions):
+        """重写拖拽开始 | Override drag start to extract files."""
+        if not self._main_window or not self._main_window.current_path:
+            return
+
+        selected_items = self.selectedItems()
+        if not selected_items:
+            return
+
+        # 收集选中文件路径 | Collect selected file paths
+        entries = []
+        for item in selected_items:
+            fp = item.data(0, Qt.ItemDataRole.UserRole)
+            if fp and not fp.endswith('/'):
+                entries.append(fp)
+
+        if not entries:
+            return
+
+        # 提取到临时目录 | Extract to temp directory
+        temp_dir = tempfile.mkdtemp(prefix="arkmanager_drag_")
+        try:
+            self._main_window.backend.extract(
+                filepath=self._main_window.current_path,
+                output_dir=temp_dir,
+                entries=entries,
+            )
+        except Exception as e:
+            self._main_window._log(f"Drag extract error: {e}")
+            return
+
+        # 构建文件 URL 列表 | Build file URL list
+        urls = []
+        for entry in entries:
+            path = os.path.join(temp_dir, entry)
+            if os.path.exists(path):
+                urls.append(QUrl.fromLocalFile(path))
+
+        if not urls:
+            return
+
+        mime_data = QMimeData()
+        mime_data.setUrls(urls)
+        drag = QDrag(self)
+        drag.setMimeData(mime_data)
+        drag.exec(Qt.DropAction.CopyAction)
+
+
 class MainWindow(QMainWindow):
     """主窗口类 | Main window class."""
 
@@ -180,6 +240,10 @@ class MainWindow(QMainWindow):
         self.setWindowTitle(f"{__app_name__} {__version__}")
         self.resize(1200, 800)
         self.setMinimumSize(1000, 650)  # 最小窗口大小 | Minimum window size
+
+        # 启用拖放 | Enable drag and drop
+        self.setAcceptDrops(True)
+
         self.statusBar().showMessage(tr("Ready"))
 
     def _setup_ui(self):
@@ -221,8 +285,9 @@ class MainWindow(QMainWindow):
         # 主分割器 (文件树 | 右侧面板) | Main splitter (file tree | right panel)
         main_splitter = QSplitter(Qt.Orientation.Horizontal)
 
-        # 文件树 | File tree
-        self.tree = QTreeWidget()
+        # 文件树 (支持拖出) | File tree (with drag-out support)
+        self.tree = DragTreeWidget()
+        self.tree.set_main_window(self)
         self.tree.setHeaderLabels([
             tr("Name"),
             tr("Size"),
@@ -237,6 +302,10 @@ class MainWindow(QMainWindow):
         self.tree.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         self.tree.customContextMenuRequested.connect(self._show_tree_context_menu)
         self.tree.itemSelectionChanged.connect(self._on_selection_changed)
+
+        # 启用从树控件拖出文件 | Enable drag from tree widget
+        self.tree.setDragEnabled(True)
+        self.tree.setDragDropMode(DragTreeWidget.DragDropMode.DragOnly)
 
         # 调整列宽 | Adjust column widths
         header = self.tree.header()
@@ -1640,6 +1709,160 @@ and advanced features.</p>
 
         # 保存窗口状态 | Save window state
         settings.setValue('windowState', self.saveState())
+
+    # ==================== 拖放事件 | Drag and Drop Events ====================
+
+    def dragEnterEvent(self, event):
+        """处理拖入事件 | Handle drag enter event."""
+        if event.mimeData().hasUrls():
+            # 接受文件拖入 | Accept file drops
+            event.acceptProposedAction()
+        else:
+            event.ignore()
+
+    def dragMoveEvent(self, event):
+        """处理拖动移动事件 | Handle drag move event."""
+        if event.mimeData().hasUrls():
+            event.acceptProposedAction()
+        else:
+            event.ignore()
+
+    def dropEvent(self, event):
+        """处理文件放下事件 | Handle file drop event."""
+        if not event.mimeData().hasUrls():
+            event.ignore()
+            return
+
+        urls = event.mimeData().urls()
+        if not urls:
+            event.ignore()
+            return
+
+        # 获取第一个本地文件路径 | Get first local file path
+        file_path = urls[0].toLocalFile()
+        if file_path and os.path.isfile(file_path):
+            self._log(f"File dropped: {file_path}")
+            self._load_archive(file_path)
+            event.acceptProposedAction()
+        else:
+            event.ignore()
+
+    def _start_drag_from_tree(self):
+        """从文件树拖出文件到文件管理器 | Drag files from tree to file manager."""
+        selected_items = self.tree.selectedItems()
+        if not selected_items or not self.current_path:
+            return
+
+        # 收集选中文件的路径 | Collect selected file paths
+        entries_to_extract = []
+        for item in selected_items:
+            file_path = item.data(0, Qt.ItemDataRole.UserRole)
+            if file_path:
+                entries_to_extract.append(file_path)
+
+        if not entries_to_extract:
+            return
+
+        # 创建临时目录并提取文件 | Create temp dir and extract files
+        temp_dir = tempfile.mkdtemp(prefix="arkmanager_drag_")
+        self._log(f"Extracting {len(entries_to_extract)} files for drag...")
+
+        try:
+            self.backend.extract(
+                filepath=self.current_path,
+                output_dir=temp_dir,
+                entries=entries_to_extract,
+            )
+
+            # 创建拖拽数据 | Create drag data
+            mime_data = QMimeData()
+            urls = []
+            for entry in entries_to_extract:
+                extracted_path = os.path.join(temp_dir, entry)
+                if os.path.exists(extracted_path):
+                    urls.append(QUrl.fromLocalFile(extracted_path))
+
+            if urls:
+                mime_data.setUrls(urls)
+                drag = QDrag(self)
+                drag.setMimeData(mime_data)
+                drag.exec(Qt.DropAction.CopyAction)
+        except Exception as e:
+            self._log(f"Drag extract failed: {e}")
+
+    # ==================== CLI 快速操作方法 | CLI Quick Operation Methods ====================
+
+    def _quick_extract_here(self, filepath: str):
+        """快速解压到文件所在目录 | Quick extract to file's directory."""
+        output_dir = os.path.dirname(os.path.abspath(filepath))
+        self._log(f"Quick extract here: {filepath} -> {output_dir}")
+
+        try:
+            result = self.backend.extract(
+                filepath=filepath,
+                output_dir=output_dir,
+                create_parent_dir=True,
+                overwrite=False,
+            )
+            if result:
+                self.statusBar().showMessage(tr("Extraction complete."))
+                self._log("Quick extraction complete")
+            else:
+                self.statusBar().showMessage(tr("Extraction failed."))
+                self._log("Quick extraction failed")
+        except Exception as e:
+            self._log(f"Quick extraction error: {e}")
+            QMessageBox.critical(self, tr("Error"), str(e))
+
+    def _quick_compress(self, files: list):
+        """快速压缩文件 | Quick compress files."""
+        self._log(f"Quick compress: {len(files)} files")
+        dialog = CompressDialog(input_paths=files, parent=self)
+        if dialog.exec() == CompressDialog.DialogCode.Accepted:
+            options = dialog.get_options()
+            self._log(f"Creating archive: {options['output_path']}")
+
+            compress_args = {
+                'output_path': options['output_path'],
+                'input_paths': options.get('files', files),
+                'format': options.get('format', '7z'),
+                'compression_level': options.get('compression_level', 5),
+                'password': options.get('password'),
+            }
+
+            self.worker = WorkerThread(
+                lambda: self.backend.compress(**compress_args)
+            )
+            self.worker.finished.connect(self._on_compress_finished)
+            self.worker.start()
+
+            self.progress_bar.setRange(0, 0)
+            self.progress_bar.show()
+            self.statusBar().showMessage(tr("Creating archive..."))
+
+    def _quick_checksum(self, files: list):
+        """快速计算文件哈希 | Quick calculate file hash."""
+        self._log(f"Quick checksum: {len(files)} files")
+        dialog = ChecksumDialog(files=files, parent=self)
+        dialog.exec()
+
+    def _on_compress_finished(self, success: bool, message: str):
+        """压缩完成回调 | Compression finished callback."""
+        self.progress_bar.hide()
+
+        if success:
+            self.statusBar().showMessage(tr("Archive created."))
+            self._log("Archive creation complete")
+            QMessageBox.information(
+                self, tr("Success"), tr("Archive created.")
+            )
+        else:
+            self.statusBar().showMessage(tr("Compression failed."))
+            self._log(f"Compression failed: {message}")
+            QMessageBox.critical(
+                self, tr("Error"),
+                message or tr("Compression failed.")
+            )
 
     def closeEvent(self, event):
         """关闭事件 | Close event."""

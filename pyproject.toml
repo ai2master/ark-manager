@@ -49,9 +49,6 @@ Issues = "https://github.com/ai2master/ark-manager/issues"
 [project.scripts]
 arkmanager = "arkmanager.__main__:main"
 
-[project.gui-scripts]
-arkmanager-gui = "arkmanager.__main__:main"
-
 [tool.setuptools.packages.find]
 include = ["arkmanager*"]
 

@@ -8,6 +8,7 @@ Installs right-click context menu entries for Linux file managers (Nautilus, Nem
 """
 
 import shutil
+import subprocess
 from pathlib import Path
 from typing import Dict, List
 
@@ -338,6 +339,111 @@ def remove_dolphin() -> bool:
         return False
 
 
+def install_desktop_entry() -> bool:
+    """
+    安装 .desktop 文件到用户目录 | Install .desktop file to user directory.
+
+    如果系统目录 (/usr/share/applications/) 中已存在则跳过。
+    Skip if already exists in system directory (/usr/share/applications/).
+
+    Returns:
+        安装成功返回 True | True if installation succeeds
+    """
+    try:
+        system_desktop = Path('/usr/share/applications/arkmanager.desktop')
+        if system_desktop.exists():
+            # DEB 包已安装，无需重复 | Already installed by DEB package
+            return True
+
+        # 安装到用户目录 | Install to user directory
+        user_apps_dir = Path.home() / '.local' / 'share' / 'applications'
+        user_apps_dir.mkdir(parents=True, exist_ok=True)
+
+        # 查找 arkmanager 可执行文件路径 | Find arkmanager executable path
+        arkmanager_bin = shutil.which('arkmanager') or 'arkmanager'
+
+        desktop_content = f'''[Desktop Entry]
+Name=ArkManager
+GenericName=Archive Manager
+GenericName[zh_CN]=压缩包管理器
+Comment=Manage compressed archives with Chinese encoding support
+Comment[zh_CN]=支持中文编码的压缩包管理器
+Exec={arkmanager_bin} %F
+Icon=arkmanager
+Terminal=false
+Type=Application
+Categories=Utility;Archiving;Compression;
+MimeType=application/zip;application/x-7z-compressed;application/x-rar-compressed;application/gzip;application/x-bzip2;application/x-xz;application/x-tar;application/x-compress;application/x-lzma;application/x-lzip;application/zstd;
+Keywords=archive;compress;decompress;zip;7z;rar;tar;extract;
+StartupNotify=true
+'''
+        desktop_path = user_apps_dir / 'arkmanager.desktop'
+        desktop_path.write_text(desktop_content)
+
+        return True
+
+    except OSError as e:
+        print(f"安装桌面文件失败 | Failed to install desktop entry: {e}")
+        return False
+
+
+def remove_desktop_entry() -> bool:
+    """
+    移除用户目录下的 .desktop 文件 | Remove .desktop file from user directory.
+
+    Returns:
+        移除成功返回 True | True if removal succeeds
+    """
+    try:
+        user_desktop = Path.home() / '.local' / 'share' / 'applications' / 'arkmanager.desktop'
+        if user_desktop.exists():
+            user_desktop.unlink()
+        return True
+    except OSError as e:
+        print(f"移除桌面文件失败 | Failed to remove desktop entry: {e}")
+        return False
+
+
+def update_desktop_database():
+    """
+    更新桌面数据库和 MIME 缓存 | Update desktop database and MIME cache.
+
+    在安装/移除后调用以刷新系统的 MIME 关联。
+    Called after install/remove to refresh system MIME associations.
+    """
+    # 更新用户级桌面数据库 | Update user-level desktop database
+    user_apps = str(Path.home() / '.local' / 'share' / 'applications')
+    try:
+        if shutil.which('update-desktop-database'):
+            subprocess.run(
+                ['update-desktop-database', user_apps],
+                capture_output=True, timeout=10
+            )
+    except Exception:
+        pass
+
+    # 更新系统级桌面数据库 | Update system-level desktop database
+    try:
+        if shutil.which('update-desktop-database'):
+            subprocess.run(
+                ['update-desktop-database', '/usr/share/applications'],
+                capture_output=True, timeout=10
+            )
+    except Exception:
+        pass
+
+    # 更新 MIME 数据库 | Update MIME database
+    try:
+        if shutil.which('update-mime-database'):
+            user_mime = str(Path.home() / '.local' / 'share' / 'mime')
+            subprocess.run(
+                ['update-mime-database', user_mime],
+                capture_output=True, timeout=10
+            )
+    except Exception:
+        pass
+
+
 def install_all() -> Dict[str, bool]:
     """
     安装所有检测到的文件管理器集成 | Install integration for all detected file managers.
@@ -374,6 +480,16 @@ def install_all() -> Dict[str, bool]:
     if not results:
         print("未检测到支持的文件管理器 | No supported file managers detected")
 
+    # 安装 .desktop 文件 (如果系统级不存在) | Install .desktop file if not system-wide
+    desktop_ok = install_desktop_entry()
+    results['desktop_entry'] = desktop_ok
+    if desktop_ok:
+        print("✓ .desktop 文件已安装 | .desktop entry installed")
+
+    # 刷新桌面数据库 | Refresh desktop database
+    update_desktop_database()
+    print("✓ 桌面数据库已更新 | Desktop database updated")
+
     return results
 
 
@@ -405,6 +521,14 @@ def remove_all() -> Dict[str, bool]:
             print(f"✓ {manager} 集成移除成功 | {manager} integration removed successfully")
         else:
             print(f"✗ {manager} 集成移除失败 | {manager} integration removal failed")
+
+    # 移除用户级 .desktop 文件 | Remove user-level .desktop file
+    desktop_ok = remove_desktop_entry()
+    results['desktop_entry'] = desktop_ok
+
+    # 刷新桌面数据库 | Refresh desktop database
+    update_desktop_database()
+    print("✓ 桌面数据库已更新 | Desktop database updated")
 
     return results
 
