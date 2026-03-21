@@ -134,15 +134,15 @@ cp resources/arkmanager.svg "${APP_DIR}/usr/share/icons/hicolor/scalable/apps/"
 # AppImage file format = type2-runtime (ELF executable header) + squashfs (compressed filesystem)
 # At runtime, the runtime mounts squashfs via FUSE to a temp dir, then executes AppRun.
 APPIMAGE_FILE="${PACKAGE_NAME}-${VERSION}-x86_64.AppImage"
-RUNTIME_URL="https://github.com/AppImage/type2-runtime/releases/download/continuous/runtime-fuse3-x86_64"
+RUNTIME_URL="https://github.com/AppImage/type2-runtime/releases/download/continuous/runtime-x86_64"
 
-# --- 6a. 下载 fuse3 版 type2-runtime ---
-# --- 6a. Download fuse3 type2-runtime ---
-# 使用 fuse3 版本的 runtime，因为现代 Linux 发行版（Ubuntu 22.04+）默认安装 libfuse3
-# 而非 libfuse2。fuse3 runtime 确保 AppImage 在大多数现代系统上直接运行。
-# Using fuse3 runtime because modern Linux distros (Ubuntu 22.04+) ship libfuse3
-# by default, not libfuse2. fuse3 runtime ensures AppImage runs on most modern systems.
-echo "Downloading AppImage runtime (fuse3)..."
+# --- 6a. 下载 type2-runtime ---
+# --- 6a. Download type2-runtime ---
+# type2-runtime 需要 libfuse2。如果目标系统无 libfuse2，
+# 用户可以使用 --appimage-extract-and-run 参数自动解压运行。
+# type2-runtime requires libfuse2. If target system lacks libfuse2,
+# users can use --appimage-extract-and-run to auto-extract and run.
+echo "Downloading AppImage runtime..."
 wget -q "${RUNTIME_URL}" -O runtime-x86_64
 chmod +x runtime-x86_64
 

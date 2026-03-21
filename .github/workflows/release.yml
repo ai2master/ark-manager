@@ -155,13 +155,13 @@ jobs:
       # --- 安装系统依赖 | Install system dependencies ---
       # p7zip-full: 7z 命令（嵌入 AppImage）| 7z command (embedded in AppImage)
       # libgl1-mesa-dri, libegl1: OpenGL 库（PyQt6 需要）| OpenGL for PyQt6
-      # libfuse3-dev: FUSE3 库（fuse3 runtime 需要）| FUSE3 for fuse3 runtime
+      # libfuse2: FUSE 库（AppImage runtime 需要）| FUSE for AppImage runtime
       # file: file 命令（用于验证生成的文件类型）| file command for type verification
       # squashfs-tools: mksquashfs 命令（手动构建 squashfs 镜像）| mksquashfs for manual squashfs build
       - name: Install system deps
         run: |
           sudo apt-get update
-          sudo apt-get install -y p7zip-full libgl1-mesa-dri libegl1 libfuse3-dev file squashfs-tools
+          sudo apt-get install -y p7zip-full libgl1-mesa-dri libegl1 libfuse2 file squashfs-tools
 
       - name: Build AppImage
         run: |
@@ -297,6 +297,10 @@ jobs:
           # AppImage (portable, no install needed)
           chmod +x ArkManager-*.AppImage
           ./ArkManager-*.AppImage
+          # If FUSE is not available, use:
+          # 如果 FUSE 不可用，请使用：
+          # sudo apt install libfuse2  # 或 | or:
+          # ./ArkManager-*.AppImage --appimage-extract-and-run
 
           # Flatpak
           flatpak install ArkManager-*.flatpak
